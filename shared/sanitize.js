@@ -18,7 +18,7 @@ const DROP_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 't
 
 const VOID_TAGS = new Set(['br', 'hr', 'img']);
 
-const STYLE_PROPS = new Set(['color', 'background-color', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-align', 'font-family']);
+const STYLE_PROPS = new Set(['color', 'background-color', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-align', 'font-family', 'position', 'left', 'top']);
 const SAFE_URL = /^(?:https?:|mailto:|tel:|#|\/|\.\/)/i;
 
 function cleanStyle(value) {
@@ -30,6 +30,8 @@ function cleanStyle(value) {
       const name = rule.slice(0, colon).trim().toLowerCase();
       const raw = rule.slice(colon + 1).trim();
       if (!STYLE_PROPS.has(name)) return '';
+      if (name === 'position' && raw.toLowerCase() !== 'relative') return '';
+      if (['left', 'top'].includes(name) && !/^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|pt|in|cm|mm)?$/i.test(raw)) return '';
       // url()/expression()/javascript: are the CSS-level injection vectors.
       if (/url\s*\(|expression|javascript:|@import|\\/i.test(raw)) return '';
       return `${name}:${raw}`;
@@ -45,6 +47,11 @@ function cleanAttrs(tag, attrs) {
     if (!image) return '';
     out.push(`src="data:${image.mime};base64,${image.base64}"`);
     if (attrs.alt) out.push(`alt="${String(attrs.alt).replace(/[&"<>]/g, (ch) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[ch])}"`);
+    if (['left', 'center', 'right'].includes(String(attrs.align || '').toLowerCase())) {
+      out.push(`align="${String(attrs.align).toLowerCase()}"`);
+    }
+    const style = cleanStyle(attrs.style || '');
+    if (style) out.push(`style="${style.replace(/"/g, '&quot;')}"`);
     for (const dimension of ['width', 'height']) {
       const size = Math.min(1600, Math.max(1, Number.parseInt(attrs[dimension], 10) || 0));
       if (size) out.push(`${dimension}="${size}"`);

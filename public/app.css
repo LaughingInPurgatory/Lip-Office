@@ -157,6 +157,7 @@ main {
 .file-breadcrumbs { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 24px; overflow-x: auto; border-bottom: 1px solid var(--line); color: var(--muted); }
 .file-breadcrumbs button { min-height: 28px; padding: 3px 6px; border: 0; background: transparent; color: var(--accent); font-size: 13px; }
 .file-breadcrumbs button:hover { background: var(--accent-soft); }
+.file-breadcrumbs .new-folder-button { margin-left: auto; white-space: nowrap; }
 .file-list { list-style: none; max-height: min(56vh, 480px); min-height: 100px; margin: 0; padding: 8px 12px 14px; overflow-y: auto; }
 .file-list li { display: flex; align-items: center; gap: 4px; }
 .file-entry { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
@@ -215,6 +216,7 @@ main {
 .word-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
 .page {
+  display: flow-root;
   width: 8.5in;
   max-width: 100%;
   height: var(--paper-height, 11in);
@@ -247,6 +249,12 @@ main {
 .page table { border-collapse: collapse; margin: .5em 0; }
 .page td, .page th { border: 1px solid #bfbfbf; padding: 4px 8px; min-width: 48px; vertical-align: top; }
 .page a { color: #1a73e8; }
+.page img { max-width: 100%; height: auto; vertical-align: middle; cursor: move; }
+.page img:active { cursor: grabbing; }
+.page img.image-selected { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.page img[align="left"] { float: left; margin: 0 .15in .12in 0; }
+.page img[align="right"] { float: right; margin: 0 0 .12in .15in; }
+.page img[align="center"] { display: block; margin: .12in auto; }
 
 /* ------------------------------------------------------------- spreadsheet */
 

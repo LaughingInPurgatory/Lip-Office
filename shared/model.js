@@ -21,8 +21,8 @@ export const EXTENSIONS = {
 
 /** Formats each component can write. */
 export const SAVE_FORMATS = {
-  word: ['docx', 'odt', 'rtf', 'txt', 'html'],
-  sheet: ['xlsx', 'ods', 'csv'],
+  word: ['docx'],
+  sheet: ['xlsx'],
 };
 
 export function extensionOf(name) {

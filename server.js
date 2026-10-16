@@ -185,6 +185,12 @@ async function handleApi(req, res, pathname, query) {
     return sendError(res, 405, 'method not allowed');
   }
 
+  if (pathname === '/api/documents/folders' && req.method === 'POST') {
+    const body = await readBody(req);
+    const path = await store.createFolder(body.parent || '', body.name);
+    return sendJson(res, 201, { path });
+  }
+
   // Import a local file straight from the browser: parse it, do not store it.
   if (pathname === '/api/parse' && req.method === 'POST') {
     const body = await readBody(req);

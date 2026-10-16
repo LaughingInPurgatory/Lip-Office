@@ -1,5 +1,5 @@
 // Suite shell: view switching, file browsing, and save/open/import.
-import { createWordEditor } from './word.js?v=page-end-caret-restore';
+import { createWordEditor } from './word.js?v=image-drop-move-resize';
 import { createSheetEditor } from './sheets.js';
 import { SAVE_FORMATS, extensionOf, usedRange } from '/shared/model.js';
 
@@ -301,7 +301,7 @@ function updateDialogChrome() {
   elements.saveNameField.classList.toggle('hidden', dialogMode !== 'save');
   if (dialogMode === 'save') {
     title.textContent = 'Save a file';
-    subtitle.textContent = 'Choose a folder. Drag files onto folders or breadcrumbs to move; hover to browse.';
+    subtitle.textContent = 'Choose a folder or create one. Drag files onto folders or breadcrumbs to move.';
     elements.dialogFooter.classList.remove('hidden');
     elements.dialogFooterLabel.textContent = `Save in ${openFolder || 'Documents'}`;
     elements.cancelDialogAction.textContent = 'Cancel';
@@ -309,7 +309,9 @@ function updateDialogChrome() {
     elements.confirmDialogAction.textContent = 'Save here';
   } else {
     title.textContent = dialogMode === 'manage' ? 'Manage files' : 'Open a file';
-    subtitle.textContent = 'Drag files onto folders or breadcrumbs to move; hover to browse.';
+    subtitle.textContent = dialogMode === 'manage'
+      ? 'Create folders and drag files onto folders or breadcrumbs to move them.'
+      : 'Drag files onto folders or breadcrumbs to move; hover to browse.';
     elements.dialogFooter.classList.add('hidden');
   }
 }
@@ -340,6 +342,15 @@ function renderBreadcrumbs() {
     markDropTarget(crumb, target, { navigateOnHover: true });
     elements.breadcrumbs.append(crumb);
   }
+
+  if (dialogMode === 'manage' || dialogMode === 'save') {
+    const create = document.createElement('button');
+    create.type = 'button';
+    create.className = 'new-folder-button';
+    create.textContent = '+ New folder';
+    create.addEventListener('click', createFolderInDialog);
+    elements.breadcrumbs.append(create);
+  }
 }
 
 async function refreshDialog(folder = activeFolder()) {
@@ -368,6 +379,23 @@ async function refreshDialog(folder = activeFolder()) {
 
 function navigateFolder(folder) {
   refreshDialog(folder);
+}
+
+async function createFolderInDialog() {
+  const name = window.prompt('New folder name:');
+  if (name === null || !name.trim()) return;
+  try {
+    const result = await request('/api/documents/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parent: activeFolder(), name: name.trim() }),
+    });
+    setStatus(`Created folder ${result.path}`);
+    await refreshDialog(dialogMode === 'save' ? result.path : activeFolder());
+  } catch (err) {
+    setStatus(err.message, true);
+    window.alert(err.message);
+  }
 }
 
 async function showFileDialog(mode, folder = '') {
@@ -477,14 +505,21 @@ async function openDocument(name) {
 
 async function doSave(targetFolder, forceFolder = false) {
   const editor = current();
+  const format = SAVE_FORMATS[editor.kind][0];
   if (!forceFolder && !editor.name) {
     showSaveDialog();
     return false;
   }
-  const format = forceFolder ? elements.format.value : editor.name.split('.').pop().toLowerCase();
+  if (!forceFolder && !SAVE_FORMATS[editor.kind].includes(editor.name.split('.').pop().toLowerCase())) {
+    // Imported legacy/open formats remain untouched; Save As writes the modern format.
+    elements.name.value = editor.name.split('/').pop();
+    showFileDialog('save', parentFolder(editor.name));
+    elements.name.value = elements.name.value.replace(/\.[^.]+$/, `.${format}`);
+    return false;
+  }
   const saveFolder = forceFolder ? targetFolder : parentFolder(editor.name);
   const name = forceFolder
-    ? fileNameFor(elements.name.value, format, saveFolder, true)
+    ? fileNameFor(elements.name.value, elements.format.value || format, saveFolder, true)
     : editor.name;
   setStatus('Saving\u2026');
   try {

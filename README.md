@@ -9,12 +9,12 @@ Two components:
 
 - **Word processor** (`public/word.js`) — a Word-style editing surface with headings,
   bold/italic/underline/strikethrough, super/subscript, colour, bullet and numbered
-  lists, indentation, alignment, hyperlinks, tables, rules, and undo/redo. Opens
-  `.doc`, `.dot`, `.docx`, `.odt`, `.rtf`, `.txt` and `.html`; saves `.docx`, `.odt`,
-  `.rtf`, `.txt` and `.html`.
+  lists, indentation, alignment, hyperlinks, tables, rules, embedded images that can be
+  dropped, moved and resized, and undo/redo. Opens
+  `.doc`, `.dot`, `.docx`, `.odt`, `.rtf`, `.txt` and `.html`; saves `.docx`.
 - **Spreadsheet** (`public/sheets.js`) — a grid with a formula bar, keyboard navigation,
   multiple sheets, and formulas with cell/range references. Opens `.xls`, `.xlt`,
-  `.xlsx`, `.ods` and `.csv`; saves `.xlsx`, `.ods` and `.csv`.
+  `.xlsx`, `.ods` and `.csv`; saves `.xlsx`.
 
 There are **no npm dependencies**. Node's built-in `zlib` is enough to read and write
 the ZIP containers that `.docx`, `.xlsx`, `.odt` and `.ods` really are, and the OOXML
@@ -84,11 +84,11 @@ Pick **Word processor** or **Spreadsheet**, then:
 - **New** — start an empty file.
 - **Import…** — open a file from your computer. It is converted in the browser session
   and is not stored until you save.
-- **Save** — write it to `documents/` in the format chosen in the dropdown. The
-  extension follows the format, so naming it `report` and choosing `.ods` saves
-  `report.ods`.
-- **Download** — fetch the stored file as real `.docx`/`.xlsx`/… bytes.
-- `Cmd`/`Ctrl`+`S` saves. Clicking a name in the sidebar reopens it; `×` deletes it.
+- **Save** — write word processor files as `.docx` and spreadsheets as `.xlsx` in
+  `documents/`. Older formats can still be imported; saving one creates the matching
+  modern-format file.
+- **Download** — fetch the currently opened source file as-is.
+- `Cmd`/`Ctrl`+`S` saves. Use **Open** to browse files and **Manage** to delete or move them.
 
 In the word processor, select text and use the toolbar. In the spreadsheet, arrows move,
 typing starts an edit, `Enter` moves down, `Tab` moves right, `F2` edits in place,
@@ -137,7 +137,7 @@ The word processor's document format is HTML, and the spreadsheet's is
 `{sheets: [{name, cells}]}`. Every file format is converted to and from those two
 shapes, which is why all the converters are small and share one markup parser.
 
-The API is five routes:
+The API provides these routes:
 
 | Route | Purpose |
 | --- | --- |
@@ -145,6 +145,8 @@ The API is five routes:
 | `GET /api/documents/:name` | open one, converted to the internal shape |
 | `GET /api/documents/:name?download=1` | raw file bytes, as an attachment |
 | `PUT /api/documents/:name` | save `{kind, format, doc}` |
+| `POST /api/documents/folders` | create a folder under a parent folder |
+| `POST /api/documents/move` | move a file to a folder |
 | `POST /api/parse` | convert an uploaded file in memory, store nothing |
 | `DELETE /api/documents/:name` | delete |
 
@@ -173,14 +175,14 @@ The API is five routes:
 - **Legacy binary `.doc`, `.dot`, `.xls` and `.xlt` import uses built-in readers.**
   Word import extracts document text and paragraph breaks. Excel import reads common
   BIFF5/BIFF8 cell values, shared strings and cached formula results. Legacy formatting,
-  images, macros and unsupported BIFF records are not preserved; save to `.docx`, `.odt`,
-  `.xlsx` or `.ods` to keep editing in a modern format.
-- **Fidelity is good, not pixel-perfect.** The OOXML and ODF writers cover text,
+  images, macros and unsupported BIFF records are not preserved; save to `.docx` or `.xlsx`
+  to keep editing in a modern format.
+- **Fidelity is good, not pixel-perfect.** The `.docx` and `.xlsx` writers cover text,
   headings, bold/italic/underline/strikethrough, super/subscript, colour, font size,
   alignment, bullet and numbered lists, tables, hyperlinks, headers, footers, one to
   three text columns, Letter/A4 paper, portrait/landscape orientation, and common margins.
-  `.docx` and `.odt` preserve embedded PNG/JPEG/GIF images; `.xlsx`
-  and `.ods` preserve images anchored to cells. RTF, TXT, CSV, and legacy binary imports
+  `.docx` preserves embedded PNG/JPEG/GIF images and `.xlsx` preserves images anchored to
+  cells. RTF, TXT, CSV, and legacy binary imports
   do not preserve images or page layout. Footnotes, comments, tracked changes, conditional
   formatting, charts, and cell number formats are not supported. Reading is broader than
   writing.
@@ -193,8 +195,8 @@ The API is five routes:
   will not work. The 1904 date system is not handled.
 - **ODS repeated-row/column runs are expanded up to the grid limit**, not expanded in
   place, and the sheet cap is 5000 rows by 256 columns.
-- **CSV is single-sheet.** Saving a multi-sheet workbook as `.csv` writes the first sheet;
-  the others and any images are not in the file.
+- **CSV imports are single-sheet.** Additional sheets and images in other formats are not
+  represented by a CSV file.
 - **The grid recomputes the whole visible sheet on every edit.** That is imperceptible at
   the default 100×26 and fine into a few thousand cells; `public/sheets.js` has a
   `shortcut:` note marking where incremental recalculation would go.

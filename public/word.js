@@ -31,6 +31,8 @@ export function createWordEditor(root) {
   let margin = 1;
   let activeRegion = page;
   let repaginatePending = false;
+  let selectedImage = null;
+  let draggedImage = null;
 
   // Clicking a toolbar control blurs the page, so keep the last caret range and
   // put it back before running the command.
@@ -55,15 +57,45 @@ export function createWordEditor(root) {
     syncToolbar();
   }
 
-  function insertImage(dataUrl) {
+  function updateImageControls() {
+    const enabled = Boolean(selectedImage?.isConnected);
+    toolbar.querySelectorAll('[data-action="image-smaller"], [data-action="image-larger"]')
+      .forEach((button) => { button.disabled = !enabled; });
+  }
+
+  function selectImage(image) {
+    selectedImage?.classList.remove('image-selected');
+    selectedImage = image?.isConnected ? image : null;
+    selectedImage?.classList.add('image-selected');
+    updateImageControls();
+  }
+
+  function resizeSelectedImage(direction) {
+    if (!selectedImage?.isConnected) return;
+    const width = selectedImage.getBoundingClientRect().width || Number(selectedImage.width) || selectedImage.naturalWidth;
+    const ratio = selectedImage.naturalWidth && selectedImage.naturalHeight
+      ? selectedImage.naturalHeight / selectedImage.naturalWidth
+      : (Number(selectedImage.height) || width) / width;
+    const nextWidth = Math.max(24, Math.min(1600, Math.round(width * (direction > 0 ? 1.2 : 0.8))));
+    selectedImage.setAttribute('width', String(nextWidth));
+    selectedImage.setAttribute('height', String(Math.max(1, Math.round(nextWidth * ratio))));
+    scheduleRepaginate();
+  }
+
+  function insertImage(dataUrl, alt = '') {
     const probe = new Image();
     probe.addEventListener('load', () => {
       const scale = Math.min(1, 640 / probe.naturalWidth, 480 / probe.naturalHeight);
       const width = Math.max(1, Math.round(probe.naturalWidth * scale));
       const height = Math.max(1, Math.round(probe.naturalHeight * scale));
       reveal();
-      document.execCommand('insertHTML', false, `<img src="${dataUrl}" alt="" width="${width}" height="${height}">`);
+      const imagesBefore = new Set(page.querySelectorAll('img'));
+      const safeAlt = String(alt).replace(/[&"<>]/g, (ch) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[ch]);
+      document.execCommand('insertHTML', false, `<img src="${dataUrl}" alt="${safeAlt}" width="${width}" height="${height}" draggable="true">`);
+      const inserted = [...page.querySelectorAll('img')].find((image) => !imagesBefore.has(image));
+      if (inserted) selectImage(inserted);
       savedRange = selectionInPage();
+      scheduleRepaginate();
     }, { once: true });
     probe.src = dataUrl;
   }
@@ -75,9 +107,37 @@ export function createWordEditor(root) {
     }
     const reader = new FileReader();
     reader.addEventListener('load', () => {
-      if (typeof reader.result === 'string') insertImage(reader.result);
+      if (typeof reader.result === 'string') insertImage(reader.result, file.name || '');
     }, { once: true });
     reader.readAsDataURL(file);
+  }
+
+  function caretRangeAtPoint(x, y, targetPage) {
+    let range = document.caretRangeFromPoint?.(x, y) || null;
+    if (!range && document.caretPositionFromPoint) {
+      const position = document.caretPositionFromPoint(x, y);
+      if (position) {
+        range = document.createRange();
+        range.setStart(position.offsetNode, position.offset);
+        range.collapse(true);
+      }
+    }
+    if (range && targetPage.contains(range.commonAncestorContainer)) return range;
+    range = document.createRange();
+    range.selectNodeContents(targetPage);
+    range.collapse(false);
+    return range;
+  }
+
+  function focusAtDrop(event, targetPage) {
+    const range = caretRangeAtPoint(event.clientX, event.clientY, targetPage);
+    targetPage.focus({ preventScroll: true });
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    activeRegion = targetPage;
+    savedRange = range.cloneRange();
+    return range;
   }
 
   function selectionInPage() {
@@ -348,8 +408,59 @@ export function createWordEditor(root) {
     if (sheet) activeRegion = sheet;
   });
   for (const editable of editables) editable.addEventListener('focus', () => { activeRegion = editable; });
-  page.addEventListener('input', scheduleRepaginate);
+  page.addEventListener('input', () => {
+    if (!selectedImage?.isConnected) selectImage(null);
+    scheduleRepaginate();
+  });
   page.addEventListener('load', (event) => { if (event.target.matches('img')) scheduleRepaginate(); }, true);
+  page.addEventListener('click', (event) => {
+    const image = event.target.closest?.('img');
+    selectImage(image && page.contains(image) ? image : null);
+  });
+  page.addEventListener('dragstart', (event) => {
+    const image = event.target.closest?.('img');
+    if (!image || !page.contains(image)) return;
+    draggedImage = image;
+    image.draggable = true;
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('application/x-lip-office-image', 'move');
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  });
+  page.addEventListener('dragend', () => { draggedImage = null; });
+  page.addEventListener('dragover', (event) => {
+    const imageFile = [...(event.dataTransfer?.items || [])]
+      .some((item) => item.kind === 'file' && /^image\/(png|jpeg|gif)$/.test(item.type));
+    if (draggedImage || imageFile) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = draggedImage ? 'move' : 'copy';
+    }
+  });
+  page.addEventListener('drop', (event) => {
+    const targetPage = event.target.closest?.('.page');
+    if (!targetPage || !page.contains(targetPage)) return;
+    const isImageMove = draggedImage || event.dataTransfer?.types?.includes('application/x-lip-office-image');
+    if (isImageMove && draggedImage) {
+      event.preventDefault();
+      const range = focusAtDrop(event, targetPage);
+      const moving = draggedImage;
+      range.insertNode(moving);
+      range.setStartAfter(moving);
+      range.collapse(true);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      selectImage(moving);
+      savedRange = range.cloneRange();
+      scheduleRepaginate();
+      return;
+    }
+    const file = [...(event.dataTransfer?.files || [])]
+      .find((item) => ['image/png', 'image/jpeg', 'image/gif'].includes(item.type));
+    if (!file) return;
+    event.preventDefault();
+    focusAtDrop(event, targetPage);
+    readImage(file);
+  });
   window.addEventListener('resize', scheduleRepaginate);
 
   toolbar.addEventListener('mousedown', (event) => {
@@ -373,6 +484,8 @@ export function createWordEditor(root) {
       imageInput.click();
       return;
     }
+    if (action === 'image-smaller') return resizeSelectedImage(-1);
+    if (action === 'image-larger') return resizeSelectedImage(1);
     if (command) runCommand(command);
     return undefined;
   });
@@ -430,6 +543,7 @@ export function createWordEditor(root) {
     newDocument() {
       docTitle = '';
       savedRange = null;
+      selectImage(null);
       activeRegion = null;
       const blank = blankWord();
       page.replaceChildren(createPage(sanitizeHtml(blank.html)));
@@ -450,6 +564,7 @@ export function createWordEditor(root) {
     setDocument(doc) {
       const safe = normalizeWord(doc);
       savedRange = null;
+      selectImage(null);
       activeRegion = null;
       docTitle = safe.title;
       page.replaceChildren(createPage(sanitizeHtml(safe.html) || '<p><br></p>'));

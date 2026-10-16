@@ -88,7 +88,7 @@ function isPrivateLanHostHeader(value) {
       const firstBlock = Number.parseInt(hostname.split(':')[0] || '0', 16);
       return (firstBlock & 0xfe00) === 0xfc00 || (firstBlock & 0xffc0) === 0xfe80;
     }
-    return hostname.endsWith('.local');
+    return hostname.endsWith('.local') || hostname.endsWith('.lan');
   } catch {
     return false;
   }

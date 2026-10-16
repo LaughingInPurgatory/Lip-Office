@@ -70,8 +70,8 @@ first published; change the package visibility in GitHub if anonymous pulls are 
 Use [docker-compose.zimaos.yml](docker-compose.zimaos.yml) as a customized app Compose
 file in ZimaOS. Create `/DATA/AppData/lip-office/documents` and make it writable by
 UID/GID `1000:1000`. The file publishes port 3000 to the LAN and accepts private LAN IPs,
-`.local` hostnames, and `kaarnavene.lan:3000`, so local computers can use either the NAS
-IP or its LAN hostname.
+`.local` or `.lan` hostnames, so local computers can use either the NAS IP or its LAN
+hostname.
 Lip Office has no login or HTTPS, so only use this on a trusted network and do not
 forward the port to the public internet. The GHCR image is private; authenticate the
 ZimaOS Docker host to `ghcr.io` with a GitHub token that has `read:packages` before
@@ -153,7 +153,7 @@ The API is five routes:
 - **Local use only.** The app has no login or HTTPS, so native mode binds to `127.0.0.1`
   and refuses non-local bindings. The Docker image listens inside its container, while
   the standard Compose file publishes only on host loopback. The ZimaOS-specific Compose
-  file publishes to the LAN and accepts private LAN IPs and `.local` hostnames; only use
+  file publishes to the LAN and accepts private LAN IPs and `.local` or `.lan` hostnames; only use
   it on a trusted network. Do not expose it to the public internet.
 - Responses include a restrictive Content Security Policy and browser security headers.
   Mutating API requests must have a same-origin `Origin` header; cross-site requests are

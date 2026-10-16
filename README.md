@@ -65,6 +65,16 @@ on pushes to `main` and `v*` tags. To use the published image, set
 `docker compose up -d`. GitHub Container Registry packages are private by default when
 first published; change the package visibility in GitHub if anonymous pulls are wanted.
 
+### Install on ZimaOS
+
+Use [docker-compose.zimaos.yml](docker-compose.zimaos.yml) as a customized app Compose
+file in ZimaOS. Before installing, replace `YOUR_ZIMAOS_LAN_IP:3000` with the NAS's LAN
+address and port, create `/DATA/AppData/lip-office/documents`, and make it writable by
+UID/GID `1000:1000`. The file publishes port 3000 to the LAN. Lip Office has no login or
+HTTPS, so only use this on a trusted network. The GHCR image is private; authenticate
+the ZimaOS Docker host to `ghcr.io` with a GitHub token that has `read:packages` before
+pulling it. Do not put that token in the Compose file.
+
 ## Using it
 
 Pick **Word processor** or **Spreadsheet**, then:
@@ -140,8 +150,9 @@ The API is five routes:
 
 - **Local use only.** The app has no login or HTTPS, so native mode binds to `127.0.0.1`
   and refuses non-local bindings. The Docker image listens inside its container, while
-  Compose publishes only on host loopback. Do not expose its port to a network. Network
-  hosting needs a separate authenticated HTTPS gateway in front of the app.
+  the standard Compose file publishes only on host loopback. The ZimaOS-specific Compose
+  file publishes to the LAN and restricts accepted hostnames to the configured NAS
+  address; only use it on a trusted network. Do not expose it to the public internet.
 - Responses include a restrictive Content Security Policy and browser security headers.
   Mutating API requests must have a same-origin `Origin` header; cross-site requests are
   rejected. Request headers and upload time are bounded.

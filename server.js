@@ -62,6 +62,18 @@ function isLoopbackHostHeader(value) {
   }
 }
 
+const configuredAllowedHosts = new Set(
+  String(process.env.LIP_OFFICE_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+function isAllowedHostHeader(value) {
+  const host = String(value || '').toLowerCase();
+  return configuredAllowedHosts.size ? configuredAllowedHosts.has(host) : isLoopbackHostHeader(host);
+}
+
 function sameOriginMutation(req) {
   if (!['POST', 'PUT', 'DELETE'].includes(req.method)) return true;
   if (req.headers['sec-fetch-site'] === 'cross-site') return false;
@@ -218,7 +230,7 @@ const handleRequest = async (req, res) => {
   try {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost');
     const host = String(req.headers.host || '').toLowerCase();
-    if (!isLoopbackHostHeader(host)) return sendError(res, 421, 'unrecognized host');
+    if (!isAllowedHostHeader(host)) return sendError(res, 421, 'unrecognized host');
     if (!sameOriginMutation(req)) return sendError(res, 403, 'cross-origin request blocked');
 
     if (pathname === '/favicon.ico') { res.writeHead(204).end(); return; }

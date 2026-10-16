@@ -45,7 +45,7 @@ export function createWordEditor(root) {
   let savedRange = null;
 
   function reveal(button) {
-    activeRegion.focus();
+    (activeRegion?.matches('.page-region') ? activeRegion : page).focus();
     if (!savedRange) return;
     const selection = window.getSelection();
     selection.removeAllRanges();
@@ -140,7 +140,7 @@ export function createWordEditor(root) {
 
   function focusAtDrop(event, targetPage) {
     const range = caretRangeAtPoint(event.clientX, event.clientY, targetPage);
-    targetPage.focus({ preventScroll: true });
+    page.focus({ preventScroll: true });
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
@@ -151,20 +151,20 @@ export function createWordEditor(root) {
 
   function selectionInPage() {
     const selection = window.getSelection();
-    if (!selection.rangeCount) return null;
+    if (!selection?.rangeCount) return null;
     const range = selection.getRangeAt(0);
-    const region = [...page.querySelectorAll('.page'), ...editables].find((item) => item.contains(range.commonAncestorContainer));
-    if (region) activeRegion = region;
-    return region ? range.cloneRange() : null;
+    if (!page.contains(selection.anchorNode) || !page.contains(selection.focusNode)) return null;
+    activeRegion = pages().find((item) => item === selection.focusNode || item.contains(selection.focusNode)) || pages()[0];
+    return range.cloneRange();
   }
 
+  // Visual pages inherit one editing host from #word-page so selections can
+  // extend across page boundaries without switching editing contexts.
   function createPage(html = '') {
     const sheet = document.createElement('div');
     sheet.className = 'page';
-    sheet.contentEditable = 'true';
     sheet.spellcheck = true;
     sheet.innerHTML = html;
-    sheet.addEventListener('focus', () => { activeRegion = sheet; });
     return sheet;
   }
 
@@ -173,8 +173,7 @@ export function createWordEditor(root) {
   function capturePageSelection() {
     const selection = window.getSelection();
     if (!selection?.rangeCount) return null;
-    const range = selection.getRangeAt(0);
-    if (!pages().some((sheet) => sheet.contains(range.commonAncestorContainer))) return null;
+    if (!page.contains(selection.anchorNode) || !page.contains(selection.focusNode)) return null;
     return {
       anchorNode: selection.anchorNode,
       anchorOffset: selection.anchorOffset,
@@ -184,17 +183,16 @@ export function createWordEditor(root) {
   }
 
   function restorePageSelection(saved) {
-    if (!saved || !saved.anchorNode?.isConnected || !saved.focusNode?.isConnected) return false;
-    const sheet = pages().find((item) => item.contains(saved.anchorNode) && item.contains(saved.focusNode));
-    if (!sheet) return false;
+    if (!saved || !saved.anchorNode?.isConnected || !saved.focusNode?.isConnected
+      || !page.contains(saved.anchorNode) || !page.contains(saved.focusNode)) return false;
     const clamp = (node, offset) => Math.min(offset, node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length);
-    sheet.focus({ preventScroll: true });
+    page.focus({ preventScroll: true });
     const selection = window.getSelection();
     selection.setBaseAndExtent(
       saved.anchorNode, clamp(saved.anchorNode, saved.anchorOffset),
       saved.focusNode, clamp(saved.focusNode, saved.focusOffset),
     );
-    activeRegion = sheet;
+    activeRegion = pages().find((item) => item === saved.focusNode || item.contains(saved.focusNode)) || pages()[0];
     return true;
   }
 
@@ -310,9 +308,8 @@ export function createWordEditor(root) {
   }
 
   function repaginate() {
-    // Reflow moves blocks between independent contenteditable pages. Browsers
-    // can otherwise keep keyboard focus on the old page while the caret's node
-    // has moved, so preserve and explicitly restore the caret after the moves.
+    // Reflow moves blocks between visual pages. Preserve both selection
+    // endpoints so a caret or range remains intact across the page boundary.
     const savedSelection = capturePageSelection();
     const paper = paperDimensions(pageSize);
     const height = (orientation === 'landscape' ? paper[0] : paper[1]) * 96;
@@ -385,17 +382,20 @@ export function createWordEditor(root) {
       /* queryCommandValue is best-effort */
     }
     const stylePreview = {
-      P: ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'],
-      H1: ['24pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
-      H2: ['18pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
-      H3: ['14pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
-      BLOCKQUOTE: ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      P: ['11pt', 'normal', 'Arial, sans-serif'],
+      H1: ['24pt', 'bold', 'Arial, sans-serif'],
+      H2: ['18pt', 'bold', 'Arial, sans-serif'],
+      H3: ['14pt', 'bold', 'Arial, sans-serif'],
+      BLOCKQUOTE: ['11pt', 'normal', 'Arial, sans-serif'],
       PRE: ['10pt', 'normal', 'Consolas, Menlo, monospace'],
-    }[formatSelect.value] || ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'];
+    }[formatSelect.value] || ['11pt', 'normal', 'Arial, sans-serif'];
     [formatSelect.style.fontSize, formatSelect.style.fontWeight, formatSelect.style.fontFamily] = stylePreview;
     try {
       const family = String(document.queryCommandValue('fontName') || '').replace(/["']/g, '').split(',')[0].trim();
-      const option = [...fontFamilySelect.options].find((item) => item.value.toLowerCase() === family.toLowerCase());
+      const isDefaultFamily = !family || family.toLowerCase() === 'arial';
+      const option = isDefaultFamily
+        ? fontFamilySelect.querySelector('option[value=""]')
+        : [...fontFamilySelect.options].find((item) => item.value.toLowerCase() === family.toLowerCase());
       if (option) fontFamilySelect.value = option.value;
     } catch { /* queryCommandValue is best-effort */ }
   }
@@ -543,7 +543,7 @@ export function createWordEditor(root) {
   toolbar.addEventListener('change', (event) => {
     if ([columnsSelect, paperSelect, orientationSelect, marginSelect].includes(event.target)) sourceDocxDirty = true;
     if (event.target === formatSelect) runCommand('formatBlock', formatSelect.value, { restore: true });
-    if (event.target === fontFamilySelect) runCommand('fontName', fontFamilySelect.value, { restore: true });
+    if (event.target === fontFamilySelect) runCommand('fontName', fontFamilySelect.value || 'Arial', { restore: true });
     if (event.target === columnsSelect) {
       columns = Number(columnsSelect.value);
       applyPageLayout();
@@ -646,6 +646,6 @@ export function createWordEditor(root) {
 
     acceptSourceDocxLoss() { sourceDocxLossAccepted = true; },
 
-    focus() { (activeRegion?.matches?.('.page') ? activeRegion : pages()[0])?.focus(); },
+    focus() { (activeRegion?.matches?.('.page-region') ? activeRegion : page)?.focus(); },
   };
 }

@@ -28,7 +28,9 @@ export function createSheetEditor(root) {
   let cursor = { col: 1, row: 1 };
   let nodes = new Map();   // A1 -> <td>
   let editing = null;      // { ref, settle }
-  let selectedTd = null;
+  let selectedTds = new Set();
+  let selectionAnchor = { col: 1, row: 1 };
+  let selectingCells = false;
   let formulaRef = 'A1';
 
   const sheet = () => doc.sheets[doc.active];
@@ -52,7 +54,7 @@ export function createSheetEditor(root) {
 
   function build() {
     editing = null;
-    selectedTd = null;
+    selectedTds.clear();
     nodes = new Map();
 
     const table = document.createElement('table');
@@ -142,9 +144,31 @@ export function createSheetEditor(root) {
   }
 
   function markSelected() {
-    if (selectedTd) selectedTd.classList.remove('selected');
-    selectedTd = nodes.get(toRef(cursor.col, cursor.row)) || null;
-    if (selectedTd) selectedTd.classList.add('selected');
+    for (const td of selectedTds) td.classList.remove('selected', 'active-cell');
+    selectedTds.clear();
+    const firstCol = Math.min(selectionAnchor.col, cursor.col);
+    const lastCol = Math.max(selectionAnchor.col, cursor.col);
+    const firstRow = Math.min(selectionAnchor.row, cursor.row);
+    const lastRow = Math.max(selectionAnchor.row, cursor.row);
+    for (let row = firstRow; row <= lastRow; row++) {
+      for (let col = firstCol; col <= lastCol; col++) {
+        const td = nodes.get(toRef(col, row));
+        if (!td) continue;
+        td.classList.add('selected');
+        if (col === cursor.col && row === cursor.row) td.classList.add('active-cell');
+        selectedTds.add(td);
+      }
+    }
+  }
+
+  function forSelectedCells(callback) {
+    const firstCol = Math.min(selectionAnchor.col, cursor.col);
+    const lastCol = Math.max(selectionAnchor.col, cursor.col);
+    const firstRow = Math.min(selectionAnchor.row, cursor.row);
+    const lastRow = Math.max(selectionAnchor.row, cursor.row);
+    for (let row = firstRow; row <= lastRow; row++) {
+      for (let col = firstCol; col <= lastCol; col++) callback(toRef(col, row));
+    }
   }
 
   function syncFormula() {
@@ -160,6 +184,7 @@ export function createSheetEditor(root) {
   function moveCursor(col, row, options = {}) {
     commitEdit();
     cursor = { col: clamp(col, 1, cols), row: clamp(row, 1, rows) };
+    if (!options.extend) selectionAnchor = { ...cursor };
     markSelected();
     syncFormula();
     nodes.get(toRef(cursor.col, cursor.row))?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -230,6 +255,7 @@ export function createSheetEditor(root) {
     commitEdit();
     doc.active = index;
     cursor = { col: 1, row: 1 };
+    selectionAnchor = { ...cursor };
     renderTabs();
     build();
   }
@@ -267,11 +293,29 @@ export function createSheetEditor(root) {
     const td = event.target.closest('td[data-ref]');
     if (!td) return;
     if (editing && editing.ref === td.dataset.ref) return; // click landed inside the open editor
+    if (event.button !== 0) return;
     const position = parseRef(td.dataset.ref);
     if (!position) return;
     event.preventDefault();
-    moveCursor(position.col, position.row);
+    commitEdit();
+    if (!event.shiftKey) selectionAnchor = position;
+    cursor = position;
+    selectingCells = true;
+    markSelected();
+    syncFormula();
+    host.focus();
   });
+
+  host.addEventListener('mousemove', (event) => {
+    if (!selectingCells) return;
+    const td = event.target.closest('td[data-ref]');
+    const position = td && parseRef(td.dataset.ref);
+    if (!position || position.col === cursor.col && position.row === cursor.row) return;
+    cursor = position;
+    markSelected();
+    syncFormula();
+  });
+  document.addEventListener('mouseup', () => { selectingCells = false; });
 
   host.addEventListener('dblclick', (event) => {
     const td = event.target.closest('td[data-ref]');
@@ -285,20 +329,20 @@ export function createSheetEditor(root) {
 
   host.addEventListener('keydown', (event) => {
     if (editing) return;
-    const move = (dCol, dRow) => {
+    const move = (dCol, dRow, extend = false) => {
       event.preventDefault();
-      moveCursor(cursor.col + dCol, cursor.row + dRow);
+      moveCursor(cursor.col + dCol, cursor.row + dRow, { extend });
     };
 
     switch (event.key) {
-      case 'ArrowUp': return move(0, -1);
-      case 'ArrowDown': return move(0, 1);
-      case 'ArrowLeft': return move(-1, 0);
-      case 'ArrowRight': return move(1, 0);
-      case 'PageUp': return move(0, -20);
-      case 'PageDown': return move(0, 20);
-      case 'Home': return move(-cols, 0);
-      case 'End': return move(cols, 0);
+      case 'ArrowUp': return move(0, -1, event.shiftKey);
+      case 'ArrowDown': return move(0, 1, event.shiftKey);
+      case 'ArrowLeft': return move(-1, 0, event.shiftKey);
+      case 'ArrowRight': return move(1, 0, event.shiftKey);
+      case 'PageUp': return move(0, -20, event.shiftKey);
+      case 'PageDown': return move(0, 20, event.shiftKey);
+      case 'Home': return move(-cols, 0, event.shiftKey);
+      case 'End': return move(cols, 0, event.shiftKey);
       case 'Tab': return move(event.shiftKey ? -1 : 1, 0);
       case 'Enter': return move(0, event.shiftKey ? -1 : 1);
       case 'F2':
@@ -308,7 +352,7 @@ export function createSheetEditor(root) {
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        delete sheet().cells[toRef(cursor.col, cursor.row)];
+        forSelectedCells((ref) => { delete sheet().cells[ref]; });
         refresh();
         syncFormula();
         return;
@@ -339,13 +383,16 @@ export function createSheetEditor(root) {
   formulaInput.addEventListener('blur', commitFormula);
 
   function applySelectedFont() {
-    const ref = toRef(cursor.col, cursor.row);
-    const style = {};
-    if (fontFamilySelect.value) style.fontFamily = fontFamilySelect.value;
-    if (fontSizeSelect.value) style.fontSize = Number(fontSizeSelect.value);
     sheet().cellStyles ||= {};
-    if (Object.keys(style).length) sheet().cellStyles[ref] = style;
-    else delete sheet().cellStyles[ref];
+    forSelectedCells((ref) => {
+      const style = { ...(sheet().cellStyles[ref] || {}) };
+      if (fontFamilySelect.value) style.fontFamily = fontFamilySelect.value;
+      else delete style.fontFamily;
+      if (fontSizeSelect.value) style.fontSize = Number(fontSizeSelect.value);
+      else delete style.fontSize;
+      if (Object.keys(style).length) sheet().cellStyles[ref] = style;
+      else delete sheet().cellStyles[ref];
+    });
     refresh();
   }
   fontFamilySelect.addEventListener('change', applySelectedFont);
@@ -404,8 +451,10 @@ export function createSheetEditor(root) {
     if (action === 'add-rows') { rows = Math.min(MAX_ROWS, rows + 100); build(); }
     else if (action === 'add-columns') { cols = Math.min(MAX_COLS, cols + 10); build(); }
     else if (action === 'clear-cell') {
-      delete sheet().cells[toRef(cursor.col, cursor.row)];
-      if (sheet().images) delete sheet().images[toRef(cursor.col, cursor.row)];
+      forSelectedCells((ref) => {
+        delete sheet().cells[ref];
+        if (sheet().images) delete sheet().images[ref];
+      });
       refresh();
       syncFormula();
     } else if (action === 'image') imageInput.click();
@@ -447,6 +496,7 @@ export function createSheetEditor(root) {
       rows = START_ROWS;
       cols = START_COLS;
       cursor = { col: 1, row: 1 };
+      selectionAnchor = { ...cursor };
       renderTabs();
       build();
     },
@@ -462,6 +512,7 @@ export function createSheetEditor(root) {
         cols = Math.min(MAX_COLS, Math.max(cols, bounds.cols + 5));
       }
       cursor = { col: 1, row: 1 };
+      selectionAnchor = { ...cursor };
       renderTabs();
       build();
     },

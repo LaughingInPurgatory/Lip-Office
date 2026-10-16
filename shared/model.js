@@ -79,7 +79,26 @@ export function normalizeSheet(doc) {
       };
     }
     const name = typeof sheet?.name === 'string' && sheet.name.trim() ? sheet.name.trim() : `Sheet${index + 1}`;
-    return { name, cells, images };
+    const columnWidths = {};
+    for (const [column, width] of Object.entries(sheet?.columnWidths || {})) {
+      if (/^[A-Z]{1,3}$/.test(column.toUpperCase()) && Number.isFinite(Number(width))) columnWidths[column.toUpperCase()] = Math.min(600, Math.max(40, Number(width)));
+    }
+    const rowHeights = {};
+    for (const [row, height] of Object.entries(sheet?.rowHeights || {})) {
+      if (/^[1-9]\d{0,3}$/.test(row) && Number.isFinite(Number(height))) rowHeights[row] = Math.min(300, Math.max(18, Number(height)));
+    }
+    const cellStyles = {};
+    const rawStyles = sheet?.cellStyles && typeof sheet.cellStyles === 'object' ? sheet.cellStyles : {};
+    for (const [ref, style] of Object.entries(rawStyles)) {
+      const key = ref.toUpperCase();
+      if (!REF_RE.test(key) || !style || typeof style !== 'object') continue;
+      const fontFamily = typeof style.fontFamily === 'string' && /^[\w .,'-]{1,80}$/.test(style.fontFamily) ? style.fontFamily : '';
+      const fontSize = Number(style.fontSize);
+      if (fontFamily || (Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 96)) {
+        cellStyles[key] = { ...(fontFamily ? { fontFamily } : {}), ...(Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 96 ? { fontSize } : {}) };
+      }
+    }
+    return { name, cells, images, columnWidths, rowHeights, cellStyles };
   });
 
   if (!sheets.length) return blankSheet();

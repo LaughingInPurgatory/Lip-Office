@@ -22,6 +22,7 @@ export function createWordEditor(root) {
   const toolbar = root.querySelector('#word-toolbar');
   const colour = root.querySelector('#word-colour');
   const formatSelect = toolbar.querySelector('[data-command="formatBlock"]');
+  const fontFamilySelect = root.querySelector('#word-font-family');
   const imageInput = root.querySelector('#word-image-input');
 
   let docTitle = '';
@@ -33,6 +34,10 @@ export function createWordEditor(root) {
   let repaginatePending = false;
   let selectedImage = null;
   let draggedImage = null;
+  let imageResize = null;
+  let sourceDocxToken = '';
+  let sourceDocxDirty = false;
+  let sourceDocxLossAccepted = false;
 
   // Clicking a toolbar control blurs the page, so keep the last caret range and
   // put it back before running the command.
@@ -52,6 +57,7 @@ export function createWordEditor(root) {
   // put back — and `selectionchange` is async, so restoring it when it is not
   // needed would clobber the real selection.
   function runCommand(command, value = null, options = {}) {
+    sourceDocxDirty = true;
     if (options.restore) reveal();
     document.execCommand(command, false, value);
     syncToolbar();
@@ -72,6 +78,7 @@ export function createWordEditor(root) {
 
   function resizeSelectedImage(direction) {
     if (!selectedImage?.isConnected) return;
+    sourceDocxDirty = true;
     const width = selectedImage.getBoundingClientRect().width || Number(selectedImage.width) || selectedImage.naturalWidth;
     const ratio = selectedImage.naturalWidth && selectedImage.naturalHeight
       ? selectedImage.naturalHeight / selectedImage.naturalWidth
@@ -85,6 +92,7 @@ export function createWordEditor(root) {
   function insertImage(dataUrl, alt = '') {
     const probe = new Image();
     probe.addEventListener('load', () => {
+      sourceDocxDirty = true;
       const scale = Math.min(1, 640 / probe.naturalWidth, 480 / probe.naturalHeight);
       const width = Math.max(1, Math.round(probe.naturalWidth * scale));
       const height = Math.max(1, Math.round(probe.naturalHeight * scale));
@@ -375,6 +383,11 @@ export function createWordEditor(root) {
     } catch {
       /* queryCommandValue is best-effort */
     }
+    try {
+      const family = String(document.queryCommandValue('fontName') || '').replace(/["']/g, '').split(',')[0].trim();
+      const option = [...fontFamilySelect.options].find((item) => item.value.toLowerCase() === family.toLowerCase());
+      if (option) fontFamilySelect.value = option.value;
+    } catch { /* queryCommandValue is best-effort */ }
   }
 
   function applyPageLayout(schedule = true) {
@@ -407,8 +420,12 @@ export function createWordEditor(root) {
     const sheet = event.target.closest('.page');
     if (sheet) activeRegion = sheet;
   });
-  for (const editable of editables) editable.addEventListener('focus', () => { activeRegion = editable; });
+  for (const editable of editables) {
+    editable.addEventListener('focus', () => { activeRegion = editable; });
+    editable.addEventListener('input', () => { sourceDocxDirty = true; });
+  }
   page.addEventListener('input', () => {
+    sourceDocxDirty = true;
     if (!selectedImage?.isConnected) selectImage(null);
     scheduleRepaginate();
   });
@@ -417,6 +434,28 @@ export function createWordEditor(root) {
     const image = event.target.closest?.('img');
     selectImage(image && page.contains(image) ? image : null);
   });
+  page.addEventListener('pointerdown', (event) => {
+    const image = event.target.closest?.('img');
+    if (!image || !page.contains(image)) return;
+    selectImage(image);
+    const rect = image.getBoundingClientRect();
+    if (rect.right - event.clientX <= 16 && rect.bottom - event.clientY <= 16) {
+      event.preventDefault();
+      sourceDocxDirty = true;
+      imageResize = { image, x: event.clientX, width: rect.width, ratio: image.naturalHeight / image.naturalWidth || rect.height / rect.width };
+      image.setPointerCapture(event.pointerId);
+    }
+  });
+  page.addEventListener('pointermove', (event) => {
+    if (!imageResize) return;
+    const width = Math.max(24, Math.min(1600, Math.round(imageResize.width + event.clientX - imageResize.x)));
+    imageResize.image.setAttribute('width', String(width));
+    imageResize.image.setAttribute('height', String(Math.max(1, Math.round(width * imageResize.ratio))));
+    scheduleRepaginate();
+  });
+  const finishImageResize = () => { imageResize = null; };
+  page.addEventListener('pointerup', finishImageResize);
+  page.addEventListener('pointercancel', finishImageResize);
   page.addEventListener('dragstart', (event) => {
     const image = event.target.closest?.('img');
     if (!image || !page.contains(image)) return;
@@ -442,6 +481,7 @@ export function createWordEditor(root) {
     const isImageMove = draggedImage || event.dataTransfer?.types?.includes('application/x-lip-office-image');
     if (isImageMove && draggedImage) {
       event.preventDefault();
+      sourceDocxDirty = true;
       const range = focusAtDrop(event, targetPage);
       const moving = draggedImage;
       range.insertNode(moving);
@@ -491,7 +531,9 @@ export function createWordEditor(root) {
   });
 
   toolbar.addEventListener('change', (event) => {
+    if ([columnsSelect, paperSelect, orientationSelect, marginSelect].includes(event.target)) sourceDocxDirty = true;
     if (event.target === formatSelect) runCommand('formatBlock', formatSelect.value, { restore: true });
+    if (event.target === fontFamilySelect) runCommand('fontName', fontFamilySelect.value, { restore: true });
     if (event.target === columnsSelect) {
       columns = Number(columnsSelect.value);
       applyPageLayout();
@@ -541,6 +583,9 @@ export function createWordEditor(root) {
     name: '',
 
     newDocument() {
+      sourceDocxToken = '';
+      sourceDocxDirty = false;
+      sourceDocxLossAccepted = false;
       docTitle = '';
       savedRange = null;
       selectImage(null);
@@ -563,6 +608,9 @@ export function createWordEditor(root) {
 
     setDocument(doc) {
       const safe = normalizeWord(doc);
+      sourceDocxToken = typeof doc?.sourceDocxToken === 'string' ? doc.sourceDocxToken : '';
+      sourceDocxDirty = false;
+      sourceDocxLossAccepted = false;
       savedRange = null;
       selectImage(null);
       activeRegion = null;
@@ -583,8 +631,10 @@ export function createWordEditor(root) {
     },
 
     contents() {
-      return { title: docTitle, html: pages().map((sheet) => sheet.innerHTML).join(''), header: header.innerHTML, footer: footer.innerHTML, columns, pageSize, orientation, margin };
+      return { title: docTitle, html: pages().map((sheet) => sheet.innerHTML).join(''), header: header.innerHTML, footer: footer.innerHTML, columns, pageSize, orientation, margin, ...(sourceDocxToken ? { sourceDocxToken, sourceDocxUnchanged: !sourceDocxDirty, sourceDocxLossAccepted } : {}) };
     },
+
+    acceptSourceDocxLoss() { sourceDocxLossAccepted = true; },
 
     focus() { (activeRegion?.matches?.('.page') ? activeRegion : pages()[0])?.focus(); },
   };

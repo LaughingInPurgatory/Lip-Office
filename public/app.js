@@ -505,6 +505,13 @@ async function openDocument(name) {
 
 async function doSave(targetFolder, forceFolder = false) {
   const editor = current();
+  let doc = editor.contents();
+  if (editor.kind === 'word' && doc.sourceDocxToken && doc.sourceDocxUnchanged === false && !doc.sourceDocxLossAccepted) {
+    const accepted = window.confirm('This imported Word file contains formatting the editor may not preserve after changes. Saving will rebuild it using the editor’s supported formatting. Continue?');
+    if (!accepted) return false;
+    editor.acceptSourceDocxLoss?.();
+    doc = editor.contents();
+  }
   const format = SAVE_FORMATS[editor.kind][0];
   if (!forceFolder && !editor.name) {
     showSaveDialog();
@@ -526,7 +533,7 @@ async function doSave(targetFolder, forceFolder = false) {
     await request(`/api/documents/${encodeURIComponent(name)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: editor.kind, format, doc: editor.contents() }),
+      body: JSON.stringify({ kind: editor.kind, format, doc }),
     });
     editor.name = name;
     pendingSaveName = '';

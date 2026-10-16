@@ -251,7 +251,7 @@ main {
 .page a { color: #1a73e8; }
 .page img { max-width: 100%; height: auto; vertical-align: middle; cursor: move; }
 .page img:active { cursor: grabbing; }
-.page img.image-selected { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.page img.image-selected { outline: 2px solid #1a73e8; outline-offset: 2px; cursor: nwse-resize; }
 .page img[align="left"] { float: left; margin: 0 .15in .12in 0; }
 .page img[align="right"] { float: right; margin: 0 0 .12in .15in; }
 .page img[align="center"] { display: block; margin: .12in auto; }
@@ -300,6 +300,13 @@ main {
   font-size: 11px;
 }
 
+.grid th.col-header { position: relative; cursor: col-resize; }
+.grid th.rownum { cursor: row-resize; }
+.grid th.col-header::after, .grid th.rownum::after { content: ""; position: absolute; z-index: 4; background: transparent; }
+.grid th.col-header::after { top: 0; right: -3px; bottom: 0; width: 7px; cursor: col-resize; }
+.grid th.rownum::after { left: 0; right: 0; bottom: -3px; height: 7px; cursor: row-resize; }
+.grid th.col-header:hover::after, .grid th.rownum:hover::after { background: var(--accent); opacity: .45; }
+
 .grid th.rownum {
   position: sticky;
   left: 0;
@@ -309,6 +316,7 @@ main {
   color: var(--muted);
   font-size: 11px;
   text-align: center;
+  height: inherit;
 }
 
 .grid thead th.corner { left: 0; z-index: 3; width: 46px; }
@@ -318,8 +326,8 @@ main {
   position: relative;
   cursor: cell;
   text-align: left;
-  height: auto;
-  min-height: 24px;
+  height: inherit;
+  min-height: 0;
 }
 
 .grid td .cell-image { display: block; max-width: 112px; max-height: 72px; object-fit: contain; }

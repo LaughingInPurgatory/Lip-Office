@@ -19,6 +19,8 @@ export function createSheetEditor(root) {
   const tabsHost = root.querySelector('#sheet-tabs');
   const toolbar = root.querySelector('#sheet-toolbar');
   const imageInput = root.querySelector('#sheet-image-input');
+  const fontFamilySelect = root.querySelector('#sheet-font-family');
+  const fontSizeSelect = root.querySelector('#sheet-font-size');
 
   let doc = blankSheet();
   let rows = START_ROWS;
@@ -44,9 +46,23 @@ export function createSheetEditor(root) {
     nodes = new Map();
 
     const table = document.createElement('table');
+    const colgroup = document.createElement('colgroup');
+    const rowHeaderCol = document.createElement('col');
+    rowHeaderCol.style.width = '46px';
+    colgroup.append(rowHeaderCol);
+    for (let col = 1; col <= cols; col++) {
+      const column = document.createElement('col');
+      column.style.width = `${sheet().columnWidths?.[numToCol(col)] || 96}px`;
+      colgroup.append(column);
+    }
+    table.append(colgroup);
     const headRow = document.createElement('tr');
     headRow.append(header('corner', ''));
-    for (let col = 1; col <= cols; col++) headRow.append(header('', numToCol(col)));
+    for (let col = 1; col <= cols; col++) {
+      const th = header('col-header', numToCol(col));
+      th.dataset.resizeCol = String(col);
+      headRow.append(th);
+    }
     const thead = document.createElement('thead');
     thead.append(headRow);
     table.append(thead);
@@ -54,7 +70,10 @@ export function createSheetEditor(root) {
     const tbody = document.createElement('tbody');
     for (let row = 1; row <= rows; row++) {
       const tr = document.createElement('tr');
-      tr.append(header('rownum', String(row)));
+      tr.style.height = `${sheet().rowHeights?.[row] || 24}px`;
+      const rowHeading = header('rownum', String(row));
+      rowHeading.dataset.resizeRow = String(row);
+      tr.append(rowHeading);
       for (let col = 1; col <= cols; col++) {
         const ref = toRef(col, row);
         const td = document.createElement('td');
@@ -97,6 +116,9 @@ export function createSheetEditor(root) {
         value.textContent = shown;
         td.append(value);
       }
+      const style = sheet().cellStyles?.[ref];
+      td.style.fontFamily = style?.fontFamily || '';
+      td.style.fontSize = style?.fontSize ? `${style.fontSize}pt` : '';
       if (raw === undefined && !image) { td.className = ''; continue; }
       const numeric = shown !== '' && Number.isFinite(Number(shown));
       td.className = [
@@ -119,6 +141,9 @@ export function createSheetEditor(root) {
     formulaRef = ref;
     refBox.textContent = ref;
     formulaInput.value = sheet().cells[ref] ?? '';
+    const style = sheet().cellStyles?.[ref] || {};
+    fontFamilySelect.value = style.fontFamily || '';
+    fontSizeSelect.value = style.fontSize ? String(style.fontSize) : '';
   }
 
   function moveCursor(col, row, options = {}) {
@@ -221,7 +246,7 @@ export function createSheetEditor(root) {
     add.className = 'sheet-tab add';
     add.textContent = '+ Sheet';
     add.addEventListener('click', () => {
-      doc.sheets.push({ name: `Sheet${doc.sheets.length + 1}`, cells: {} });
+      doc.sheets.push({ name: `Sheet${doc.sheets.length + 1}`, cells: {}, images: {}, columnWidths: {}, rowHeights: {}, cellStyles: {} });
       switchSheet(doc.sheets.length - 1);
     });
     tabsHost.append(add);
@@ -302,6 +327,59 @@ export function createSheetEditor(root) {
   });
   formulaInput.addEventListener('blur', commitFormula);
 
+  function applySelectedFont() {
+    const ref = toRef(cursor.col, cursor.row);
+    const style = {};
+    if (fontFamilySelect.value) style.fontFamily = fontFamilySelect.value;
+    if (fontSizeSelect.value) style.fontSize = Number(fontSizeSelect.value);
+    sheet().cellStyles ||= {};
+    if (Object.keys(style).length) sheet().cellStyles[ref] = style;
+    else delete sheet().cellStyles[ref];
+    refresh();
+  }
+  fontFamilySelect.addEventListener('change', applySelectedFont);
+  fontSizeSelect.addEventListener('change', applySelectedFont);
+
+  let resize = null;
+  host.addEventListener('pointerdown', (event) => {
+    const colHeader = event.target.closest('[data-resize-col]');
+    const rowHeader = event.target.closest('[data-resize-row]');
+    const target = colHeader || rowHeader;
+    if (!target || event.button !== 0) return;
+    event.preventDefault();
+    const isColumn = Boolean(colHeader);
+    const index = Number(target.dataset[isColumn ? 'resizeCol' : 'resizeRow']);
+    resize = {
+      isColumn, index, start: isColumn ? event.clientX : event.clientY,
+      size: isColumn ? Number(sheet().columnWidths?.[numToCol(index)] || 96) : Number(sheet().rowHeights?.[index] || 24),
+    };
+    target.setPointerCapture(event.pointerId);
+  });
+  host.addEventListener('pointermove', (event) => {
+    if (!resize) return;
+    const delta = (resize.isColumn ? event.clientX : event.clientY) - resize.start;
+    const value = clamp(Math.round(resize.size + delta), resize.isColumn ? 40 : 18, resize.isColumn ? 600 : 300);
+    const table = host.querySelector('table');
+    if (resize.isColumn) table.querySelectorAll('col')[resize.index].style.width = `${value}px`;
+    else table.querySelectorAll('tbody tr')[resize.index - 1].style.height = `${value}px`;
+  });
+  const finishResize = (event) => {
+    if (!resize) return;
+    const state = resize;
+    const delta = (state.isColumn ? event.clientX : event.clientY) - state.start;
+    const value = clamp(Math.round(state.size + delta), state.isColumn ? 40 : 18, state.isColumn ? 600 : 300);
+    if (state.isColumn) {
+      sheet().columnWidths ||= {};
+      sheet().columnWidths[numToCol(state.index)] = value;
+    } else {
+      sheet().rowHeights ||= {};
+      sheet().rowHeights[state.index] = value;
+    }
+    resize = null;
+  };
+  host.addEventListener('pointerup', finishResize);
+  host.addEventListener('pointercancel', finishResize);
+
   toolbar.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
@@ -374,7 +452,7 @@ export function createSheetEditor(root) {
     contents() {
       commitEdit();
       return {
-        sheets: doc.sheets.map((item) => ({ name: item.name, cells: { ...item.cells }, images: { ...(item.images || {}) } })),
+        sheets: doc.sheets.map((item) => ({ name: item.name, cells: { ...item.cells }, images: { ...(item.images || {}) }, columnWidths: { ...(item.columnWidths || {}) }, rowHeights: { ...(item.rowHeights || {}) }, cellStyles: Object.fromEntries(Object.entries(item.cellStyles || {}).map(([ref, style]) => [ref, { ...style }])) })),
         active: doc.active,
       };
     },

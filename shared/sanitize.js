@@ -104,6 +104,7 @@ function render(node) {
     }
     const style = cleanStyle(node.attrs.style || '');
     if (style) rules.push(style);
+    if (node.attrs.face && /^[\w\s,-]{1,80}$/.test(node.attrs.face)) rules.push(`font-family:${node.attrs.face}`);
     return rules.length ? `<span style="${rules.join(';')}">${inner}</span>` : inner;
   }
 

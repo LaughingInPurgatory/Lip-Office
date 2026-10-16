@@ -53,6 +53,11 @@
         <option value="BLOCKQUOTE">Quote</option>
         <option value="PRE">Code block</option>
       </select>
+      <label class="layout-control">Font
+        <select id="word-font-family" title="Font family">
+          <option value="Arial">Arial</option><option value="Calibri">Calibri</option><option value="Georgia">Georgia</option><option value="Roboto">Roboto</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option><option value="Courier New">Courier New</option>
+        </select>
+      </label>
       <label class="layout-control" title="Number of text columns">Columns
         <select id="word-columns"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
       </label>
@@ -111,6 +116,14 @@
       <button data-action="add-rows" title="Add 100 rows">+100 rows</button>
       <button data-action="add-columns" title="Add 10 columns">+10 cols</button>
       <button data-action="clear-cell" title="Clear the selected cell">Clear cell</button>
+      <label class="layout-control">Font
+        <select id="sheet-font-family" title="Font family">
+          <option value="">Default</option><option value="Arial">Arial</option><option value="Calibri">Calibri</option><option value="Georgia">Georgia</option><option value="Roboto">Roboto</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option><option value="Courier New">Courier New</option>
+        </select>
+      </label>
+      <label class="layout-control">Size
+        <select id="sheet-font-size" title="Font size"><option value="">Default</option><option>8</option><option>9</option><option>10</option><option selected>11</option><option>12</option><option>14</option><option>16</option><option>18</option><option>24</option><option>36</option></select>
+      </label>
       <button data-action="image" title="Insert image in the selected cell">Image</button>
       <input id="sheet-image-input" type="file" accept="image/png,image/jpeg,image/gif" hidden>
       <span class="hint">Enter moves down, Tab moves right, F2 edits, Escape cancels.</span>

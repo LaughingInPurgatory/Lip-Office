@@ -3,6 +3,7 @@ import http from 'node:http';
 import { isIP } from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { parseDocument, serializeDocument, mimeFor } from './lib/convert.js';
 import { createStore, safeRelativePath } from './lib/store.js';
@@ -19,6 +20,9 @@ if (REMOTE_BIND && !IN_CONTAINER) {
 }
 
 const MAX_UPLOAD = 32 * 1024 * 1024;
+const SOURCE_DOCX_TTL = 4 * 60 * 60 * 1000;
+const SOURCE_DOCX_CACHE_LIMIT = 128 * 1024 * 1024;
+const sourceDocxCache = new Map();
 
 const store = createStore(path.join(ROOT, 'documents'));
 await Promise.all(['Docs', 'Spreadsheets'].map((folder) => store.ensureDirectory(folder)));
@@ -148,6 +152,33 @@ function decodeBase64(value) {
   return buffer;
 }
 
+function attachSourceDocx(parsed, name, buffer) {
+  if (parsed.kind !== 'word' || !/^docx$/i.test(path.extname(name))) return parsed;
+  const now = Date.now();
+  for (const [token, entry] of sourceDocxCache) if (entry.expires <= now) sourceDocxCache.delete(token);
+  let bytes = [...sourceDocxCache.values()].reduce((sum, entry) => sum + entry.buffer.length, 0);
+  while (bytes + buffer.length > SOURCE_DOCX_CACHE_LIMIT && sourceDocxCache.size) {
+    const [oldestToken, oldest] = sourceDocxCache.entries().next().value;
+    sourceDocxCache.delete(oldestToken);
+    bytes -= oldest.buffer.length;
+  }
+  const token = randomBytes(24).toString('hex');
+  sourceDocxCache.set(token, { buffer: Buffer.from(buffer), expires: now + SOURCE_DOCX_TTL });
+  parsed.doc.sourceDocxToken = token;
+  return parsed;
+}
+
+function originalDocxForSave(doc) {
+  if (doc?.sourceDocxUnchanged !== true) return null;
+  const token = String(doc.sourceDocxToken || '');
+  const entry = /^[a-f0-9]{48}$/.test(token) ? sourceDocxCache.get(token) : null;
+  if (!entry || entry.expires <= Date.now()) {
+    if (entry) sourceDocxCache.delete(token);
+    throw Object.assign(new Error('The original Word file preservation session expired. Reopen the document before saving to retain its full formatting.'), { status: 409 });
+  }
+  return entry.buffer;
+}
+
 async function serveStatic(res, pathname, headOnly = false) {
   const entry = STATIC_ROOTS.find((candidate) => pathname.startsWith(candidate.prefix));
   const relative = pathname === '/' ? 'index.html' : pathname.slice(entry.prefix.length);
@@ -195,7 +226,8 @@ async function handleApi(req, res, pathname, query) {
   if (pathname === '/api/parse' && req.method === 'POST') {
     const body = await readBody(req);
     const name = displayName(body.name);
-    const parsed = parseDocument(name, decodeBase64(body.data));
+    const buffer = decodeBase64(body.data);
+    const parsed = attachSourceDocx(parseDocument(name, buffer), name, buffer);
     return sendJson(res, 200, { name, kind: parsed.kind, doc: parsed.doc });
   }
 
@@ -230,7 +262,7 @@ async function handleApi(req, res, pathname, query) {
       return res.end(buffer);
     }
 
-    const parsed = parseDocument(name, buffer);
+    const parsed = attachSourceDocx(parseDocument(name, buffer), name, buffer);
     return sendJson(res, 200, { name, kind: parsed.kind, doc: parsed.doc });
   }
 
@@ -244,7 +276,8 @@ async function handleApi(req, res, pathname, query) {
     if (!SAVE_FORMATS[kind].includes(format)) {
       return sendError(res, 400, `cannot save ${kind} documents as .${format}`);
     }
-    const written = serializeDocument(body.doc, format, kind);
+    const originalDocx = kind === 'word' && format === 'docx' ? originalDocxForSave(body.doc) : null;
+    const written = originalDocx ? { buffer: originalDocx, mime: mimeFor('docx') } : serializeDocument(body.doc, format, kind);
     await store.write(name, written.buffer);
     return sendJson(res, 200, { name, kind, format, bytes: written.buffer.length });
   }

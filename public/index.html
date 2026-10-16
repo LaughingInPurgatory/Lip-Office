@@ -127,6 +127,24 @@
       <label class="layout-control">Size
         <select id="sheet-font-size" title="Font size"><option value="">Default</option><option>8</option><option>9</option><option>10</option><option selected>11</option><option>12</option><option>14</option><option>16</option><option>18</option><option>24</option><option>36</option></select>
       </label>
+      <button data-style="bold" title="Bold" aria-label="Bold"><strong>B</strong></button>
+      <button data-style="italic" title="Italic" aria-label="Italic"><em>I</em></button>
+      <button data-style="underline" title="Underline" aria-label="Underline"><u>U</u></button>
+      <button data-style="strike" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+      <label class="color-control" title="Font colour">A <input id="sheet-font-color" type="color" value="#000000" aria-label="Font colour"></label>
+      <label class="color-control" title="Cell fill"><span class="fill-icon">▰</span><input id="sheet-fill-color" type="color" value="#fff2cc" aria-label="Cell fill colour"></label>
+      <label class="layout-control" title="Cell border placement">Borders
+        <select id="sheet-border-mode" aria-label="Cell border placement">
+          <option value="none">No borders</option><option value="all">All borders</option><option value="outside">Outside</option><option value="inside">Inside</option>
+          <option value="bottom">Bottom</option><option value="top">Top</option><option value="left">Left</option><option value="right">Right</option>
+          <option value="inside-horizontal">Inside horizontal</option><option value="inside-vertical">Inside vertical</option>
+        </select>
+      </label>
+      <label class="layout-control" title="Border line weight">Line
+        <select id="sheet-border-weight"><option value="thin">Thin</option><option value="medium">Medium</option><option value="thick">Thick</option></select>
+      </label>
+      <label class="color-control" title="Border colour"><span class="border-icon">▦</span><input id="sheet-border-color" type="color" value="#000000" aria-label="Border colour"></label>
+      <button data-action="clear-colors" title="Remove font and fill colours from the selected cells">Clear colours</button>
       <button data-action="image" title="Insert image in the selected cell">Image</button>
       <input id="sheet-image-input" type="file" accept="image/png,image/jpeg,image/gif" hidden>
       <span class="hint">Enter moves down, Tab moves right, F2 edits, Escape cancels.</span>

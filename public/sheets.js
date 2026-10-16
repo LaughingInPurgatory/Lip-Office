@@ -21,6 +21,11 @@ export function createSheetEditor(root) {
   const imageInput = root.querySelector('#sheet-image-input');
   const fontFamilySelect = root.querySelector('#sheet-font-family');
   const fontSizeSelect = root.querySelector('#sheet-font-size');
+  const fontColorInput = root.querySelector('#sheet-font-color');
+  const fillColorInput = root.querySelector('#sheet-fill-color');
+  const borderModeSelect = root.querySelector('#sheet-border-mode');
+  const borderWeightSelect = root.querySelector('#sheet-border-weight');
+  const borderColorInput = root.querySelector('#sheet-border-color');
 
   let doc = blankSheet();
   let rows = START_ROWS;
@@ -50,6 +55,14 @@ export function createSheetEditor(root) {
     let width = 46;
     for (let col = 1; col <= cols; col++) width += columnWidth(col);
     return width;
+  }
+
+  function borderCss(edge) {
+    if (!edge) return '';
+    const style = edge.style || 'thin';
+    const width = style === 'thick' ? 3 : ['medium', 'mediumDashed', 'mediumDashDot', 'mediumDashDotDot'].includes(style) ? 2 : 1;
+    const line = style === 'double' ? 'double' : style === 'dotted' || style === 'hair' ? 'dotted' : style.toLowerCase().includes('dash') ? 'dashed' : 'solid';
+    return `${width}px ${line} ${edge.color || '#000000'}`;
   }
 
   function build() {
@@ -132,6 +145,15 @@ export function createSheetEditor(root) {
       const style = sheet().cellStyles?.[ref];
       td.style.fontFamily = style?.fontFamily || '';
       td.style.fontSize = style?.fontSize ? `${style.fontSize}pt` : '';
+      td.style.fontWeight = style?.bold ? 'bold' : '';
+      td.style.fontStyle = style?.italic ? 'italic' : '';
+      td.style.textDecorationLine = [style?.underline ? 'underline' : '', style?.strike ? 'line-through' : ''].filter(Boolean).join(' ');
+      td.style.color = style?.fontColor || '';
+      td.style.backgroundColor = style?.fillColor || '';
+      td.style.border = '';
+      for (const side of ['top', 'right', 'bottom', 'left']) {
+        td.style[`border${side[0].toUpperCase()}${side.slice(1)}`] = borderCss(style?.borders?.[side]);
+      }
       if (raw === undefined && !image) { td.className = ''; continue; }
       const numeric = shown !== '' && Number.isFinite(Number(shown));
       td.className = [
@@ -139,6 +161,26 @@ export function createSheetEditor(root) {
         shown.startsWith('#') ? 'error' : '',
         raw?.[0] === '=' ? 'formula' : '',
       ].filter(Boolean).join(' ');
+    }
+    for (const [ref, td] of nodes) {
+      const { col, row } = parseRef(ref);
+      const style = sheet().cellStyles?.[ref] || {};
+      const rightRef = col < cols ? toRef(col + 1, row) : '';
+      const rightTd = rightRef && nodes.get(rightRef);
+      if (rightTd) {
+        const rightStyle = sheet().cellStyles?.[rightRef] || {};
+        const edge = style.borders?.right || rightStyle.borders?.left;
+        if (edge) { td.style.borderRight = borderCss(edge); rightTd.style.borderLeft = 'none'; }
+      } else if (style.borders?.right) td.style.borderRight = borderCss(style.borders.right);
+      const belowRef = row < rows ? toRef(col, row + 1) : '';
+      const belowTd = belowRef && nodes.get(belowRef);
+      if (belowTd) {
+        const belowStyle = sheet().cellStyles?.[belowRef] || {};
+        const edge = style.borders?.bottom || belowStyle.borders?.top;
+        if (edge) { td.style.borderBottom = borderCss(edge); belowTd.style.borderTop = 'none'; }
+      } else if (style.borders?.bottom) td.style.borderBottom = borderCss(style.borders.bottom);
+      if (col === 1 && style.borders?.left) td.style.borderLeft = borderCss(style.borders.left);
+      if (row === 1 && style.borders?.top) td.style.borderTop = borderCss(style.borders.top);
     }
     markSelected();
   }
@@ -179,6 +221,13 @@ export function createSheetEditor(root) {
     const style = sheet().cellStyles?.[ref] || {};
     fontFamilySelect.value = style.fontFamily || '';
     fontSizeSelect.value = style.fontSize ? String(style.fontSize) : '';
+    fontColorInput.value = style.fontColor || '#000000';
+    fillColorInput.value = style.fillColor || '#fff2cc';
+    const border = ['top', 'right', 'bottom', 'left'].map((side) => style.borders?.[side]).find(Boolean);
+    borderColorInput.value = border?.color || '#000000';
+    for (const button of toolbar.querySelectorAll('[data-style]')) {
+      button.setAttribute('aria-pressed', style[button.dataset.style] ? 'true' : 'false');
+    }
   }
 
   function moveCursor(col, row, options = {}) {
@@ -383,20 +432,58 @@ export function createSheetEditor(root) {
   formulaInput.addEventListener('blur', commitFormula);
 
   function applySelectedFont() {
-    sheet().cellStyles ||= {};
-    forSelectedCells((ref) => {
-      const style = { ...(sheet().cellStyles[ref] || {}) };
+    updateSelectedStyles((style) => {
       if (fontFamilySelect.value) style.fontFamily = fontFamilySelect.value;
       else delete style.fontFamily;
       if (fontSizeSelect.value) style.fontSize = Number(fontSizeSelect.value);
       else delete style.fontSize;
+    });
+  }
+
+  function updateSelectedStyles(change) {
+    sheet().cellStyles ||= {};
+    forSelectedCells((ref) => {
+      const style = { ...(sheet().cellStyles[ref] || {}) };
+      change(style, ref);
       if (Object.keys(style).length) sheet().cellStyles[ref] = style;
       else delete sheet().cellStyles[ref];
     });
     refresh();
+    syncFormula();
   }
+
+  function toggleSelectedStyle(property) {
+    const active = sheet().cellStyles?.[toRef(cursor.col, cursor.row)]?.[property] === true;
+    updateSelectedStyles((style) => { if (active) delete style[property]; else style[property] = true; });
+  }
+
+  function applyBorderPreset(mode) {
+    const firstCol = Math.min(selectionAnchor.col, cursor.col);
+    const lastCol = Math.max(selectionAnchor.col, cursor.col);
+    const firstRow = Math.min(selectionAnchor.row, cursor.row);
+    const lastRow = Math.max(selectionAnchor.row, cursor.row);
+    const line = { style: borderWeightSelect.value, color: borderColorInput.value };
+    updateSelectedStyles((style, ref) => {
+      if (mode === 'none') { delete style.borders; return; }
+      const { col, row } = parseRef(ref);
+      const borders = { ...(style.borders || {}) };
+      const set = (side) => { borders[side] = line; };
+      if (mode === 'all' || mode === 'outside' && row === firstRow || mode === 'inside' && row > firstRow || mode === 'inside-horizontal' && row > firstRow || mode === 'top' && row === firstRow) set('top');
+      if (mode === 'all' || mode === 'outside' && row === lastRow || mode === 'bottom' && row === lastRow) set('bottom');
+      if (mode === 'all' || mode === 'outside' && col === firstCol || mode === 'inside' && col > firstCol || mode === 'inside-vertical' && col > firstCol || mode === 'left' && col === firstCol) set('left');
+      if (mode === 'all' || mode === 'outside' && col === lastCol || mode === 'right' && col === lastCol) set('right');
+      if (Object.keys(borders).length) style.borders = borders;
+    });
+  }
+
   fontFamilySelect.addEventListener('change', applySelectedFont);
   fontSizeSelect.addEventListener('change', applySelectedFont);
+  toolbar.querySelectorAll('[data-style]').forEach((button) => button.addEventListener('click', () => toggleSelectedStyle(button.dataset.style)));
+  fontColorInput.addEventListener('input', () => updateSelectedStyles((style) => { style.fontColor = fontColorInput.value; }));
+  fillColorInput.addEventListener('input', () => updateSelectedStyles((style) => { style.fillColor = fillColorInput.value; }));
+  borderModeSelect.addEventListener('change', () => applyBorderPreset(borderModeSelect.value));
+  borderWeightSelect.addEventListener('change', () => { if (borderModeSelect.value !== 'none') applyBorderPreset(borderModeSelect.value); });
+  borderColorInput.addEventListener('input', () => { if (borderModeSelect.value !== 'none') applyBorderPreset(borderModeSelect.value); });
 
   let resize = null;
   host.addEventListener('pointerdown', (event) => {
@@ -447,6 +534,7 @@ export function createSheetEditor(root) {
   toolbar.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
+    if (button.dataset.style) return;
     const { action } = button.dataset;
     if (action === 'add-rows') { rows = Math.min(MAX_ROWS, rows + 100); build(); }
     else if (action === 'add-columns') { cols = Math.min(MAX_COLS, cols + 10); build(); }
@@ -457,6 +545,8 @@ export function createSheetEditor(root) {
       });
       refresh();
       syncFormula();
+    } else if (action === 'clear-colors') {
+      updateSelectedStyles((style) => { delete style.fontColor; delete style.fillColor; });
     } else if (action === 'image') imageInput.click();
   });
 

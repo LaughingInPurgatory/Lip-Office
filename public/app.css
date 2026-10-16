@@ -22,7 +22,7 @@
   --accent: #8ab4f8;
   --accent-soft: #303b4b;
   --canvas: #17181a;
-  --grid-line: #3c4043;
+  --grid-line: #dadce0;
 }
 
 * { box-sizing: border-box; }
@@ -202,6 +202,9 @@ main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px;
 .toolbar .divider { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
 .toolbar .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
 .toolbar input[type="color"] { width: 34px; height: 28px; padding: 2px; }
+.toolbar .color-control { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.toolbar .color-control input[type="color"] { width: 28px; height: 26px; padding: 2px; }
+.toolbar .fill-icon, .toolbar .border-icon { font-size: 17px; line-height: 1; }
 .toolbar .layout-control { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
 .toolbar .layout-control select { padding: 3px 5px; }
 .paragraph-style-select { font-family: Arial, sans-serif; font-size: 11pt; font-weight: normal; }
@@ -336,13 +339,15 @@ main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px;
   text-align: left;
   height: inherit;
   min-height: 0;
+  background: #fff;
+  color: #000;
 }
 
 .grid td .cell-image { display: block; max-width: 112px; max-height: 72px; object-fit: contain; }
 
 .grid td.numeric { text-align: right; }
 .grid td.error { color: #b42318; }
-.grid td.formula { color: #188038; }
+.grid td.formula { color: #000; }
 .grid td.selected { background: var(--accent-soft); }
 .grid td.active-cell { box-shadow: inset 0 0 0 2px var(--accent); }
 
@@ -354,7 +359,8 @@ main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px;
   border-radius: 0;
   padding: 2px 5px;
   font: inherit;
-  background: var(--surface);
+  background: #fff;
+  color: #000;
   outline: none;
   box-shadow: inset 0 0 0 2px var(--accent);
 }

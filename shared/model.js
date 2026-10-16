@@ -95,9 +95,27 @@ export function normalizeSheet(doc) {
       if (!REF_RE.test(key) || !style || typeof style !== 'object') continue;
       const fontFamily = typeof style.fontFamily === 'string' && /^[\w .,'-]{1,80}$/.test(style.fontFamily) ? style.fontFamily : '';
       const fontSize = Number(style.fontSize);
-      if (fontFamily || (Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 96)) {
-        cellStyles[key] = { ...(fontFamily ? { fontFamily } : {}), ...(Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 96 ? { fontSize } : {}) };
+      const clean = {
+        ...(fontFamily ? { fontFamily } : {}),
+        ...(Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 96 ? { fontSize } : {}),
+      };
+      for (const property of ['bold', 'italic', 'underline', 'strike']) if (style[property] === true) clean[property] = true;
+      for (const property of ['fontColor', 'fillColor']) {
+        if (typeof style[property] === 'string' && /^#[0-9a-f]{6}$/i.test(style[property])) clean[property] = style[property].toLowerCase();
       }
+      if (style.borders?.none === true) clean.borders = { none: true };
+      else if (style.borders && typeof style.borders === 'object') {
+        const borders = {};
+        for (const side of ['top', 'right', 'bottom', 'left']) {
+          const border = style.borders[side];
+          if (!border || typeof border !== 'object') continue;
+          const borderStyle = ['thin', 'medium', 'thick', 'dashed', 'dotted', 'double', 'hair', 'dashDot', 'mediumDashed', 'mediumDashDot', 'mediumDashDotDot', 'slantDashDot'].includes(border.style) ? border.style : 'thin';
+          const color = typeof border.color === 'string' && /^#[0-9a-f]{6}$/i.test(border.color) ? border.color.toLowerCase() : '#000000';
+          borders[side] = { style: borderStyle, color };
+        }
+        if (Object.keys(borders).length) clean.borders = borders;
+      }
+      if (Object.keys(clean).length) cellStyles[key] = clean;
     }
     return { name, cells, images, columnWidths, rowHeights, cellStyles };
   });

@@ -1,5 +1,6 @@
 // Lip Office — HTTP server. Node's own http + fs, no framework, no packages.
 import http from 'node:http';
+import { isIP } from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,10 +69,35 @@ const configuredAllowedHosts = new Set(
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean),
 );
+const allowLanHosts = process.env.LIP_OFFICE_ALLOW_LAN_HOSTS === '1';
+
+function isPrivateLanHostHeader(value) {
+  try {
+    const parsed = new URL(`http://${value}`);
+    if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) return false;
+    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+    const ipVersion = isIP(hostname);
+    if (ipVersion === 4) {
+      const octets = hostname.split('.').map(Number);
+      return octets[0] === 10 ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168) ||
+        (octets[0] === 169 && octets[1] === 254);
+    }
+    if (ipVersion === 6) {
+      const firstBlock = Number.parseInt(hostname.split(':')[0] || '0', 16);
+      return (firstBlock & 0xfe00) === 0xfc00 || (firstBlock & 0xffc0) === 0xfe80;
+    }
+    return hostname.endsWith('.local');
+  } catch {
+    return false;
+  }
+}
 
 function isAllowedHostHeader(value) {
   const host = String(value || '').toLowerCase();
-  return configuredAllowedHosts.size ? configuredAllowedHosts.has(host) : isLoopbackHostHeader(host);
+  if (configuredAllowedHosts.size) return configuredAllowedHosts.has(host);
+  return isLoopbackHostHeader(host) || (allowLanHosts && isPrivateLanHostHeader(host));
 }
 
 function sameOriginMutation(req) {

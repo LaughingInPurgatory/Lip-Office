@@ -11,8 +11,8 @@
 <header class="topbar">
   <span class="brand"><img src="/lip-logo.png" alt="Lip"> <span>Office</span></span>
   <nav class="viewtabs">
-    <button class="viewtab active" data-view="word">Word processor</button>
-    <button class="viewtab" data-view="sheet">Spreadsheet</button>
+    <button class="viewtab active" data-view="word">Writer</button>
+    <button class="viewtab" data-view="sheet">Sheets</button>
   </nav>
   <div class="topbar-actions">
     <button id="open-button" type="button">Open</button>
@@ -45,7 +45,7 @@
 <main>
   <section id="editor-word" class="editor">
     <div class="toolbar" id="word-toolbar">
-      <select data-command="formatBlock" title="Paragraph style">
+      <select data-command="formatBlock" class="paragraph-style-select" title="Paragraph style">
         <option value="P">Normal text</option>
         <option value="H1">Heading 1</option>
         <option value="H2">Heading 2</option>
@@ -62,7 +62,10 @@
         <select id="word-columns"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
       </label>
       <label class="layout-control">Paper
-        <select id="word-paper"><option value="letter">Letter</option><option value="a4">A4</option></select>
+        <select id="word-paper">
+          <option value="letter">Letter</option><option value="legal">Legal</option><option value="tabloid">Tabloid</option>
+          <option value="a3">A3</option><option value="a4">A4</option><option value="a5">A5</option><option value="b5">B5</option>
+        </select>
       </label>
       <label class="layout-control">Orientation
         <select id="word-orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>

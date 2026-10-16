@@ -1,6 +1,7 @@
 // Document shapes shared by the server and the browser, plus the validation
 // that runs on anything arriving from the network.
 import { parseImageDataUrl } from './images.js';
+import { PAPER_SIZES } from './paper.js';
 
 export const MAX_SHEET_ROWS = 5000;
 export const MAX_SHEET_COLS = 256;
@@ -15,13 +16,13 @@ export function blankSheet() {
 
 /** File extension -> component. Anything absent here is not openable. */
 export const EXTENSIONS = {
-  doc: 'word', dot: 'word', docx: 'word', odt: 'word', rtf: 'word', txt: 'word', html: 'word', htm: 'word',
+  doc: 'word', dot: 'word', docx: 'word', odt: 'word', rtf: 'word', txt: 'word', md: 'word', html: 'word', htm: 'word',
   xls: 'sheet', xlt: 'sheet', xlsx: 'sheet', ods: 'sheet', csv: 'sheet',
 };
 
 /** Formats each component can write. */
 export const SAVE_FORMATS = {
-  word: ['docx'],
+  word: ['docx', 'md'],
   sheet: ['xlsx'],
 };
 
@@ -44,7 +45,7 @@ export function normalizeWord(doc) {
   const header = typeof source.header === 'string' ? source.header : '';
   const footer = typeof source.footer === 'string' ? source.footer : '';
   const columns = [1, 2, 3].includes(Number(source.columns)) ? Number(source.columns) : 1;
-  const pageSize = source.pageSize === 'a4' ? 'a4' : 'letter';
+  const pageSize = Object.hasOwn(PAPER_SIZES, source.pageSize) ? source.pageSize : 'letter';
   const orientation = source.orientation === 'landscape' ? 'landscape' : 'portrait';
   const margin = [0.5, 0.75, 1].includes(Number(source.margin)) ? Number(source.margin) : 1;
   return { title, html, header, footer, columns, pageSize, orientation, margin };

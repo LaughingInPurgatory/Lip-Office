@@ -3,6 +3,7 @@
 import { sanitizeHtml } from '/shared/sanitize.js';
 import { blankWord, normalizeWord } from '/shared/model.js';
 import { MAX_IMAGE_BYTES } from '/shared/images.js';
+import { paperDimensions } from '/shared/paper.js';
 
 const TABLE_HTML = `<table><tbody>${'<tr><td><br></td><td><br></td><td><br></td></tr>'.repeat(3)}</tbody></table><p><br></p>`;
 
@@ -313,7 +314,7 @@ export function createWordEditor(root) {
     // can otherwise keep keyboard focus on the old page while the caret's node
     // has moved, so preserve and explicitly restore the caret after the moves.
     const savedSelection = capturePageSelection();
-    const paper = pageSize === 'a4' ? [8.27, 11.69] : [8.5, 11];
+    const paper = paperDimensions(pageSize);
     const height = (orientation === 'landscape' ? paper[0] : paper[1]) * 96;
     let sheets = pages();
     if (!sheets.length) page.append(createPage('<p><br></p>'));
@@ -383,6 +384,15 @@ export function createWordEditor(root) {
     } catch {
       /* queryCommandValue is best-effort */
     }
+    const stylePreview = {
+      P: ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      H1: ['24pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      H2: ['18pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      H3: ['14pt', 'bold', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      BLOCKQUOTE: ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'],
+      PRE: ['10pt', 'normal', 'Consolas, Menlo, monospace'],
+    }[formatSelect.value] || ['11pt', 'normal', 'Calibri, "Segoe UI", Arial, sans-serif'];
+    [formatSelect.style.fontSize, formatSelect.style.fontWeight, formatSelect.style.fontFamily] = stylePreview;
     try {
       const family = String(document.queryCommandValue('fontName') || '').replace(/["']/g, '').split(',')[0].trim();
       const option = [...fontFamilySelect.options].find((item) => item.value.toLowerCase() === family.toLowerCase());
@@ -391,7 +401,7 @@ export function createWordEditor(root) {
   }
 
   function applyPageLayout(schedule = true) {
-    const paper = pageSize === 'a4' ? [8.27, 11.69] : [8.5, 11];
+    const paper = paperDimensions(pageSize);
     const [width, height] = orientation === 'landscape' ? [paper[1], paper[0]] : paper;
     page.style.setProperty('--paper-height', `${height}in`);
     for (const sheet of pages()) {

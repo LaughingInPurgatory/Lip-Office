@@ -40,6 +40,16 @@ export function createSheetEditor(root) {
     return th;
   }
 
+  function columnWidth(col) {
+    return Number(sheet().columnWidths?.[numToCol(col)] || 96);
+  }
+
+  function gridWidth() {
+    let width = 46;
+    for (let col = 1; col <= cols; col++) width += columnWidth(col);
+    return width;
+  }
+
   function build() {
     editing = null;
     selectedTd = null;
@@ -52,10 +62,11 @@ export function createSheetEditor(root) {
     colgroup.append(rowHeaderCol);
     for (let col = 1; col <= cols; col++) {
       const column = document.createElement('col');
-      column.style.width = `${sheet().columnWidths?.[numToCol(col)] || 96}px`;
+      column.style.width = `${columnWidth(col)}px`;
       colgroup.append(column);
     }
     table.append(colgroup);
+    table.style.width = `${gridWidth()}px`;
     const headRow = document.createElement('tr');
     headRow.append(header('corner', ''));
     for (let col = 1; col <= cols; col++) {
@@ -360,7 +371,10 @@ export function createSheetEditor(root) {
     const delta = (resize.isColumn ? event.clientX : event.clientY) - resize.start;
     const value = clamp(Math.round(resize.size + delta), resize.isColumn ? 40 : 18, resize.isColumn ? 600 : 300);
     const table = host.querySelector('table');
-    if (resize.isColumn) table.querySelectorAll('col')[resize.index].style.width = `${value}px`;
+    if (resize.isColumn) {
+      table.querySelectorAll('col')[resize.index].style.width = `${value}px`;
+      table.style.width = `${gridWidth() + value - columnWidth(resize.index)}px`;
+    }
     else table.querySelectorAll('tbody tr')[resize.index - 1].style.height = `${value}px`;
   });
   const finishResize = (event) => {
@@ -371,6 +385,9 @@ export function createSheetEditor(root) {
     if (state.isColumn) {
       sheet().columnWidths ||= {};
       sheet().columnWidths[numToCol(state.index)] = value;
+      const table = host.querySelector('table');
+      table.querySelectorAll('col')[state.index].style.width = `${value}px`;
+      table.style.width = `${gridWidth()}px`;
     } else {
       sheet().rowHeights ||= {};
       sheet().rowHeights[state.index] = value;

@@ -134,6 +134,7 @@ main {
   display: grid;
   grid-template-columns: 1fr;
 }
+main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px; }
 
 .file-dialog {
   width: min(540px, calc(100vw - 32px));
@@ -203,6 +204,13 @@ main {
 .toolbar input[type="color"] { width: 34px; height: 28px; padding: 2px; }
 .toolbar .layout-control { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
 .toolbar .layout-control select { padding: 3px 5px; }
+.paragraph-style-select { font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; font-weight: normal; }
+.paragraph-style-select option[value="P"] { font-size: 11pt; }
+.paragraph-style-select option[value="H1"] { font-size: 24pt; font-weight: bold; }
+.paragraph-style-select option[value="H2"] { font-size: 18pt; font-weight: bold; }
+.paragraph-style-select option[value="H3"] { font-size: 14pt; font-weight: bold; }
+.paragraph-style-select option[value="BLOCKQUOTE"] { font-size: 11pt; }
+.paragraph-style-select option[value="PRE"] { font: 10pt Consolas, Menlo, monospace; }
 
 /* -------------------------------------------------------------- word editor */
 
@@ -300,10 +308,10 @@ main {
   font-size: 11px;
 }
 
-.grid th.col-header { position: relative; cursor: col-resize; }
+.grid th.col-header { position: sticky; top: 0; cursor: col-resize; }
 .grid th.rownum { cursor: row-resize; }
 .grid th.col-header::after, .grid th.rownum::after { content: ""; position: absolute; z-index: 4; background: transparent; }
-.grid th.col-header::after { top: 0; right: -3px; bottom: 0; width: 7px; cursor: col-resize; }
+.grid th.col-header::after { top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; }
 .grid th.rownum::after { left: 0; right: 0; bottom: -3px; height: 7px; cursor: row-resize; }
 .grid th.col-header:hover::after, .grid th.rownum:hover::after { background: var(--accent); opacity: .45; }
 
@@ -322,7 +330,7 @@ main {
 .grid thead th.corner { left: 0; z-index: 3; width: 46px; }
 
 .grid td {
-  width: 96px;
+  width: auto;
   position: relative;
   cursor: cell;
   text-align: left;
@@ -421,7 +429,7 @@ main {
 
   .sheet-canvas { overflow: visible; background: #fff; }
   .grid { overflow: visible; }
-  .grid table { width: 100%; table-layout: auto; font-size: 9pt; }
+  .grid table { width: 100% !important; table-layout: auto; font-size: 9pt; }
   .grid th, .grid td { position: static; height: auto; overflow: visible; white-space: normal; text-overflow: clip; }
   .grid thead th, .grid th.rownum { background: #f0f0f0; color: #333; }
   .grid td.selected { box-shadow: none; background: transparent; }

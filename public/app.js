@@ -1,10 +1,11 @@
 // Suite shell: view switching, file browsing, and save/open/import.
 import { createWordEditor } from './word.js?v=image-drop-move-resize';
 import { createSheetEditor } from './sheets.js';
-import { SAVE_FORMATS, extensionOf, usedRange } from '/shared/model.js';
+import { SAVE_FORMATS, extensionOf, kindOf, usedRange } from '/shared/model.js';
+import { paperDimensions } from '/shared/paper.js';
 
 const ACCEPT = {
-  word: '.doc,.dot,.docx,.odt,.rtf,.txt,.html,.htm',
+  word: '.doc,.dot,.docx,.odt,.rtf,.txt,.md,.html,.htm',
   sheet: '.xls,.xlt,.xlsx,.ods,.csv',
 };
 const DEFAULT_FOLDER = { word: 'Docs', sheet: 'Spreadsheets' };
@@ -512,7 +513,7 @@ async function doSave(targetFolder, forceFolder = false) {
     editor.acceptSourceDocxLoss?.();
     doc = editor.contents();
   }
-  const format = SAVE_FORMATS[editor.kind][0];
+  const defaultFormat = SAVE_FORMATS[editor.kind][0];
   if (!forceFolder && !editor.name) {
     showSaveDialog();
     return false;
@@ -521,9 +522,13 @@ async function doSave(targetFolder, forceFolder = false) {
     // Imported legacy/open formats remain untouched; Save As writes the modern format.
     elements.name.value = editor.name.split('/').pop();
     showFileDialog('save', parentFolder(editor.name));
-    elements.name.value = elements.name.value.replace(/\.[^.]+$/, `.${format}`);
+    elements.name.value = elements.name.value.replace(/\.[^.]+$/, `.${defaultFormat}`);
     return false;
   }
+  const currentFormat = extensionOf(editor.name || '');
+  const format = forceFolder
+    ? (elements.format.value || defaultFormat)
+    : (SAVE_FORMATS[editor.kind].includes(currentFormat) ? currentFormat : defaultFormat);
   const saveFolder = forceFolder ? targetFolder : parentFolder(editor.name);
   const name = forceFolder
     ? fileNameFor(elements.name.value, elements.format.value || format, saveFolder, true)
@@ -558,9 +563,10 @@ function doPrint() {
 
   if (editor.kind === 'word') {
     const doc = editor.contents();
-    const paper = doc.pageSize === 'a4' ? 'A4' : 'letter';
     const orientation = doc.orientation === 'landscape' ? 'landscape' : 'portrait';
-    printStyle.textContent = `@page { size: ${paper} ${orientation}; margin: 0; }`;
+    const dimensions = paperDimensions(doc.pageSize);
+    const [width, height] = orientation === 'landscape' ? [...dimensions].reverse() : dimensions;
+    printStyle.textContent = `@page { size: ${width}in ${height}in; margin: 0; }`;
   } else {
     const doc = editor.contents();
     const sheet = doc.sheets[doc.active];
@@ -644,6 +650,49 @@ elements.importInput.addEventListener('change', () => {
   const file = elements.importInput.files[0];
   elements.importInput.value = ''; // so importing the same file twice still fires
   doImport(file);
+});
+
+const documentDropZone = document.querySelector('main');
+let fileDragDepth = 0;
+const hasDroppedFiles = (event) => event.dataTransfer?.types?.includes('Files')
+  && !event.dataTransfer.types.includes('application/x-lip-office-image');
+const clearFileDropState = () => {
+  fileDragDepth = 0;
+  documentDropZone.classList.remove('file-drop-active');
+};
+documentDropZone.addEventListener('dragenter', (event) => {
+  if (!hasDroppedFiles(event)) return;
+  event.preventDefault();
+  fileDragDepth++;
+  documentDropZone.classList.add('file-drop-active');
+});
+documentDropZone.addEventListener('dragover', (event) => {
+  if (!hasDroppedFiles(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+});
+documentDropZone.addEventListener('dragleave', (event) => {
+  if (!hasDroppedFiles(event) || event.relatedTarget && documentDropZone.contains(event.relatedTarget)) return;
+  fileDragDepth = Math.max(0, fileDragDepth - 1);
+  if (!fileDragDepth) documentDropZone.classList.remove('file-drop-active');
+});
+documentDropZone.addEventListener('drop', async (event) => {
+  if (!hasDroppedFiles(event)) return;
+  event.preventDefault();
+  clearFileDropState();
+  const files = [...(event.dataTransfer.files || [])];
+  const documents = files.filter((file) => kindOf(file.name));
+  if (documents.length > 1) {
+    setStatus('Drop one document at a time.', true);
+    return;
+  }
+  if (documents.length === 1) {
+    await doImport(documents[0]);
+    return;
+  }
+  if (files.length && !files.every((file) => file.type.startsWith('image/'))) {
+    setStatus(`Unsupported document type: ${files[0].name}`, true);
+  }
 });
 
 elements.name.addEventListener('keydown', (event) => {

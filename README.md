@@ -79,7 +79,7 @@ pulling it. Do not put that token in the Compose file.
 
 ## Using it
 
-Pick **Word processor** or **Spreadsheet**, then:
+Pick **Writer** or **Sheets**, then:
 
 - **New** — start an empty file.
 - **Import…** — open a file from your computer. It is converted in the browser session

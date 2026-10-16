@@ -13,6 +13,7 @@ services:
       PORT: 3000
       LIP_OFFICE_CONTAINER: "1"
       LIP_OFFICE_ALLOW_LAN_HOSTS: "1"
+      LIP_OFFICE_ALLOWED_HOSTS: "kaarnavene.lan:3000"
     volumes:
       - /DATA/AppData/lip-office/documents:/app/documents
     read_only: true

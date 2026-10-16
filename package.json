@@ -1,0 +1,14 @@
+{
+  "name": "lip-office",
+  "version": "1.0.0",
+  "description": "Browser-based office suite: word processor and spreadsheet with OOXML/ODF/RTF/CSV support. Zero dependencies.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,21 @@
+services:
+  lip-office:
+    image: ${LIP_OFFICE_IMAGE:-lip-office:local}
+    build: .
+    user: "${PUID:-1000}:${PGID:-1000}"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LIP_OFFICE_PORT:-3000}:3000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      LIP_OFFICE_CONTAINER: "1"
+    volumes:
+      - "${DOCUMENTS_DIR:-./documents}:/app/documents"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lip Office</title>
+<link rel="stylesheet" href="/app.css?v=theme-icon-right">
+</head>
+<body>
+
+<header class="topbar">
+  <span class="brand"><img src="/lip-logo.png" alt="Lip"> <span>Office</span></span>
+  <nav class="viewtabs">
+    <button class="viewtab active" data-view="word">Word processor</button>
+    <button class="viewtab" data-view="sheet">Spreadsheet</button>
+  </nav>
+  <div class="topbar-actions">
+    <button id="open-button" type="button">Open</button>
+    <button id="manage-button" type="button">Manage</button>
+    <button id="new-button" class="primary">New</button>
+    <button id="import-button">Import…</button>
+    <button id="theme-button" class="icon-button" type="button" title="Switch to dark mode" aria-label="Switch to dark mode" aria-pressed="false">
+      <svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path>
+      </svg>
+      <svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden>
+        <path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"></path>
+      </svg>
+    </button>
+    <input id="import-input" type="file" hidden>
+  </div>
+</header>
+
+<div class="savebar">
+  <span id="doc-name-display" class="docname" title="Untitled document">Untitled document</span>
+  <select id="doc-format" aria-label="File format"></select>
+  <button id="save-button" class="primary">Save</button>
+  <button id="save-as-button" type="button">Save As…</button>
+  <button id="download-button" disabled>Download</button>
+  <button id="print-button" type="button">Print</button>
+  <span id="status" class="status"></span>
+</div>
+
+<main>
+  <section id="editor-word" class="editor">
+    <div class="toolbar" id="word-toolbar">
+      <select data-command="formatBlock" title="Paragraph style">
+        <option value="P">Normal text</option>
+        <option value="H1">Heading 1</option>
+        <option value="H2">Heading 2</option>
+        <option value="H3">Heading 3</option>
+        <option value="BLOCKQUOTE">Quote</option>
+        <option value="PRE">Code block</option>
+      </select>
+      <label class="layout-control" title="Number of text columns">Columns
+        <select id="word-columns"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+      </label>
+      <label class="layout-control">Paper
+        <select id="word-paper"><option value="letter">Letter</option><option value="a4">A4</option></select>
+      </label>
+      <label class="layout-control">Orientation
+        <select id="word-orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
+      </label>
+      <label class="layout-control">Margins
+        <select id="word-margin"><option value="0.5">0.5 in</option><option value="0.75">0.75 in</option><option value="1">1 in</option></select>
+      </label>
+      <span class="divider"></span>
+      <button data-command="bold" title="Bold"><b>B</b></button>
+      <button data-command="italic" title="Italic"><i>I</i></button>
+      <button data-command="underline" title="Underline"><u>U</u></button>
+      <button data-command="strikeThrough" title="Strikethrough"><s>S</s></button>
+      <button data-command="superscript" title="Superscript">x²</button>
+      <button data-command="subscript" title="Subscript">x₂</button>
+      <input type="color" id="word-colour" value="#c00000" title="Text colour">
+      <span class="divider"></span>
+      <button data-command="insertUnorderedList" title="Bulleted list">Bullets</button>
+      <button data-command="insertOrderedList" title="Numbered list">Numbers</button>
+      <button data-command="outdent" title="Decrease indent">Outdent</button>
+      <button data-command="indent" title="Increase indent">Indent</button>
+      <span class="divider"></span>
+      <button data-command="justifyLeft" title="Align left">Left</button>
+      <button data-command="justifyCenter" title="Centre">Centre</button>
+      <button data-command="justifyRight" title="Align right">Right</button>
+      <span class="divider"></span>
+      <button data-action="link" title="Insert hyperlink">Link</button>
+      <button data-action="unlink" title="Remove hyperlink">Unlink</button>
+      <button data-action="table" title="Insert table">Table</button>
+      <button data-action="image" title="Insert image">Image</button>
+      <input id="word-image-input" type="file" accept="image/png,image/jpeg,image/gif" hidden>
+      <button data-command="insertHorizontalRule" title="Horizontal rule">Rule</button>
+      <button data-command="removeFormat" title="Clear formatting">Clear</button>
+      <span class="divider"></span>
+      <button data-command="undo" title="Undo">Undo</button>
+      <button data-command="redo" title="Redo">Redo</button>
+    </div>
+    <div class="word-canvas">
+      <div id="word-header" class="page-region page-header" contenteditable="true" data-placeholder="Header"></div>
+      <div id="word-page" class="word-pages" contenteditable="false" aria-label="Document pages"></div>
+      <div id="word-footer" class="page-region page-footer" contenteditable="true" data-placeholder="Footer"></div>
+    </div>
+  </section>
+
+  <section id="editor-sheet" class="editor hidden">
+    <div class="toolbar" id="sheet-toolbar">
+      <span class="refbox" id="sheet-ref">A1</span>
+      <input class="formula" id="sheet-formula" spellcheck="false" autocomplete="off" placeholder="value, or =SUM(A1:A9)">
+      <span class="divider"></span>
+      <button data-action="add-rows" title="Add 100 rows">+100 rows</button>
+      <button data-action="add-columns" title="Add 10 columns">+10 cols</button>
+      <button data-action="clear-cell" title="Clear the selected cell">Clear cell</button>
+      <button data-action="image" title="Insert image in the selected cell">Image</button>
+      <input id="sheet-image-input" type="file" accept="image/png,image/jpeg,image/gif" hidden>
+      <span class="hint">Enter moves down, Tab moves right, F2 edits, Escape cancels.</span>
+    </div>
+    <div class="sheet-canvas">
+      <div class="grid" id="sheet-grid" tabindex="0"></div>
+    </div>
+    <div class="sheet-tabs" id="sheet-tabs"></div>
+  </section>
+</main>
+
+<dialog id="open-dialog" class="file-dialog" aria-labelledby="open-dialog-title">
+  <div class="dialog-heading">
+    <div>
+      <h2 id="open-dialog-title">Open a file</h2>
+      <p>Browse the Documents folder</p>
+    </div>
+    <button id="close-open-dialog" type="button" aria-label="Close">×</button>
+  </div>
+  <nav id="file-breadcrumbs" class="file-breadcrumbs" aria-label="Folder path"></nav>
+  <div id="save-name-field" class="save-name-field hidden">
+    <label for="doc-name">File name</label>
+    <input id="doc-name" type="text" placeholder="untitled.docx" spellcheck="false" autocomplete="off">
+  </div>
+  <ul id="file-list" class="file-list" aria-label="Files and folders"></ul>
+  <div id="dialog-footer" class="dialog-footer hidden">
+    <span id="dialog-footer-label"></span>
+    <button id="cancel-dialog-action" type="button">Cancel</button>
+    <button id="confirm-dialog-action" class="primary" type="button"></button>
+  </div>
+</dialog>
+
+<script type="module" src="/app.js?v=theme-icon-action-icon"></script>
+</body>
+</html>

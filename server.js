@@ -254,10 +254,11 @@ async function handleApi(req, res, pathname, query) {
 
     // Hand back the real file bytes so the browser gets a genuine .docx/.xlsx.
     if (query.has('download')) {
+      const downloadName = name.split('/').at(-1);
       res.writeHead(200, {
         'Content-Type': mimeFor(extensionOf(name)),
         'Content-Length': buffer.length,
-        'Content-Disposition': `attachment; filename="${name.replace(/"/g, '')}"`,
+        'Content-Disposition': `attachment; filename="${downloadName}"`,
       });
       return res.end(buffer);
     }

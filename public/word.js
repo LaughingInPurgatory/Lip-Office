@@ -11,6 +11,14 @@ function escapeText(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 }
 
+function colorPickerValue(value) {
+  const hex = /^#(?:[0-9a-f]{6}|[0-9a-f]{3})$/i.exec(String(value || '').trim());
+  if (hex) return hex[0].length === 4 ? `#${[...hex[0].slice(1)].map((digit) => digit + digit).join('')}` : hex[0];
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(String(value || '').trim());
+  if (!rgb) return '';
+  return `#${rgb.slice(1, 4).map((channel) => Math.min(255, Number(channel)).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export function createWordEditor(root) {
   const page = root.querySelector('#word-page');
   const header = root.querySelector('#word-header');
@@ -22,8 +30,10 @@ export function createWordEditor(root) {
   const editables = [header, footer];
   const toolbar = root.querySelector('#word-toolbar');
   const colour = root.querySelector('#word-colour');
+  const highlightColour = root.querySelector('#word-highlight-colour');
   const formatSelect = toolbar.querySelector('[data-command="formatBlock"]');
   const fontFamilySelect = root.querySelector('#word-font-family');
+  const fontSizeSelect = root.querySelector('#word-font-size');
   const imageInput = root.querySelector('#word-image-input');
 
   let docTitle = '';
@@ -61,6 +71,32 @@ export function createWordEditor(root) {
     sourceDocxDirty = true;
     if (options.restore) reveal();
     document.execCommand(command, false, value);
+    syncToolbar();
+  }
+
+  function applyFontSize(size) {
+    reveal();
+    // The browser's fontSize command accepts only seven legacy sizes. Use its
+    // selection-aware wrapping, then replace the legacy size with the chosen
+    // point size so the result remains editable and exports accurately.
+    document.execCommand('fontSize', false, '7');
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    let targets = [...page.querySelectorAll('font[size="7"]')];
+    if (range.collapsed) {
+      const parent = range.startContainer.nodeType === Node.ELEMENT_NODE
+        ? range.startContainer
+        : range.startContainer.parentElement;
+      const font = parent?.closest('font[size="7"]');
+      targets = font ? [font] : [];
+    } else {
+      targets = targets.filter((font) => {
+        try { return range.intersectsNode(font); } catch { return false; }
+      });
+    }
+    for (const font of targets) font.style.fontSize = `${size}pt`;
+    sourceDocxDirty = true;
     syncToolbar();
   }
 
@@ -398,6 +434,23 @@ export function createWordEditor(root) {
         : [...fontFamilySelect.options].find((item) => item.value.toLowerCase() === family.toLowerCase());
       if (option) fontFamilySelect.value = option.value;
     } catch { /* queryCommandValue is best-effort */ }
+    try {
+      const selection = window.getSelection();
+      const anchor = selection?.anchorNode;
+      const element = anchor?.nodeType === Node.ELEMENT_NODE ? anchor : anchor?.parentElement;
+      if (element && page.contains(element)) {
+        const sizePx = Number.parseFloat(getComputedStyle(element).fontSize);
+        const sizePt = sizePx * 72 / 96;
+        const option = [...fontSizeSelect.options].reduce((best, item) =>
+          Math.abs(Number(item.value) - sizePt) < Math.abs(Number(best.value) - sizePt) ? item : best,
+        fontSizeSelect.options[0]);
+        if (option) fontSizeSelect.value = option.value;
+      }
+    } catch { /* computed selection style is best-effort */ }
+    try {
+      const value = colorPickerValue(document.queryCommandValue('hiliteColor'));
+      if (value) highlightColour.value = value;
+    } catch { /* queryCommandValue is best-effort */ }
   }
 
   function applyPageLayout(schedule = true) {
@@ -544,6 +597,7 @@ export function createWordEditor(root) {
     if ([columnsSelect, paperSelect, orientationSelect, marginSelect].includes(event.target)) sourceDocxDirty = true;
     if (event.target === formatSelect) runCommand('formatBlock', formatSelect.value, { restore: true });
     if (event.target === fontFamilySelect) runCommand('fontName', fontFamilySelect.value || 'Arial', { restore: true });
+    if (event.target === fontSizeSelect) applyFontSize(fontSizeSelect.value);
     if (event.target === columnsSelect) {
       columns = Number(columnsSelect.value);
       applyPageLayout();
@@ -555,6 +609,7 @@ export function createWordEditor(root) {
 
   // `change` rather than `input`: the colour dialog holds focus while it is open.
   colour.addEventListener('change', () => runCommand('foreColor', colour.value, { restore: true }));
+  highlightColour.addEventListener('change', () => runCommand('hiliteColor', highlightColour.value, { restore: true }));
 
   imageInput.addEventListener('change', () => {
     readImage(imageInput.files?.[0]);

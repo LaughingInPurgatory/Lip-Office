@@ -69,7 +69,7 @@ const configuredAllowedHosts = new Set(
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean),
 );
-const allowLanHosts = process.env.LIP_OFFICE_ALLOW_LAN_HOSTS === '1';
+const allowLanHosts = IN_CONTAINER && process.env.LIP_OFFICE_ALLOW_LAN_HOSTS !== '0';
 
 function isPrivateLanHostHeader(value) {
   try {
@@ -96,8 +96,8 @@ function isPrivateLanHostHeader(value) {
 
 function isAllowedHostHeader(value) {
   const host = String(value || '').toLowerCase();
-  if (configuredAllowedHosts.size) return configuredAllowedHosts.has(host);
-  return isLoopbackHostHeader(host) || (allowLanHosts && isPrivateLanHostHeader(host));
+  return configuredAllowedHosts.has(host) || isLoopbackHostHeader(host) ||
+    (allowLanHosts && isPrivateLanHostHeader(host));
 }
 
 function sameOriginMutation(req) {

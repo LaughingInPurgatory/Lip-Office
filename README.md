@@ -186,8 +186,17 @@ The API provides these routes:
   do not preserve images or page layout. Footnotes, comments, tracked changes, conditional
   formatting, charts, and cell number formats are not supported. Reading is broader than
   writing.
-- **Images are limited to PNG, JPEG, and GIF**, up to 8 MB each. SVG and externally
-  linked images are rejected for safety.
+- **Images imports** PNG, JPEG, GIF, TIFF, BMP, Amiga IFF/ILBM, PSD, WebP, and AVIF.
+  GIF and TIFF import their first frame/page. BMP support covers uncompressed 8-bit palette,
+  24-bit, and 32-bit files; IFF supports common indexed ILBM/PBM files. PSD imports raster
+  layers from RGB documents; unsupported Photoshop features such as smart objects, vector
+  masks, adjustment layers, and editable type are flattened or omitted. PSD exports retain
+  raster layers and their names, positions, visibility, opacity, and common blend modes.
+  GIF exports are static, single-frame files. TIFF, BMP, IFF, WebP, and AVIF exports are
+  flattened. The native **`.lipimg` project format** is JSON containing embedded PNG data
+  for each layer plus its name, position, visibility, opacity, blend mode, transform, and
+  text-layer settings, so those layers remain editable in Lip Office. SVG files and
+  externally linked images are rejected for safety.
 - **Font size and indentation are not settable from the toolbar** — headings cover the
   size case. Read-side font sizes and indents are preserved.
 - **Dates read as text.** Excel stores dates as serial numbers, so on import they are

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lip Office</title>
-<link rel="stylesheet" href="/app.css?v=word-image-layout">
+<link rel="stylesheet" href="/app.css?v=images-editor">
 </head>
 <body>
 
@@ -13,6 +13,7 @@
   <nav class="viewtabs">
     <button class="viewtab active" data-view="word">Writer</button>
     <button class="viewtab" data-view="sheet">Sheets</button>
+    <button class="viewtab" data-view="image">Images</button>
   </nav>
   <div class="topbar-actions">
     <button id="open-button" type="button">Open</button>
@@ -28,7 +29,7 @@
         <path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"></path>
       </svg>
     </button>
-    <input id="import-input" type="file" hidden>
+      <input id="import-input" type="file" accept=".doc,.dot,.docx,.odt,.rtf,.txt,.md,.html,.htm,.xls,.xlt,.xlsx,.ods,.csv,.lipimg,.png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,.iff,.lbm,.psd,.webp,.avif" hidden>
   </div>
 </header>
 
@@ -163,6 +164,136 @@
     </div>
     <div class="sheet-tabs" id="sheet-tabs"></div>
   </section>
+
+  <section id="editor-image" class="editor hidden">
+    <div class="toolbar image-toolbar" id="image-toolbar" aria-label="Image editing tools">
+      <div class="image-commandbar">
+        <button data-action="image-create">New</button>
+        <button data-action="image-add">Add image</button>
+        <button data-action="image-add-text">Add text</button>
+        <button data-action="image-crop">Crop</button>
+        <button data-action="image-resize">Resize</button>
+        <span class="image-toolbar-spacer"></span>
+        <button data-action="image-undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button data-action="image-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      </div>
+      <div class="image-optionsbar">
+        <label class="layout-control">Brush size <input id="image-brush-size" type="number" min="1" max="300" value="18" aria-label="Brush size"></label>
+        <label class="layout-control">Brush type <select id="image-brush-type" aria-label="Brush type"><option value="round">Round</option><option value="pencil">Pencil</option><option value="marker">Marker</option><option value="airbrush">Airbrush</option><option value="square">Square</option></select></label>
+        <label class="color-control" title="Brush colour">Colour <input id="image-brush-color" type="color" value="#1a73e8" aria-label="Brush colour"></label>
+        <label class="color-control" title="Canvas background">Background <input id="image-background-color" type="color" value="#ffffff" aria-label="Canvas background colour"></label>
+        <label class="image-transparent-toggle"><input id="image-background-transparent" type="checkbox" checked> Transparent</label>
+        <span class="image-option-divider"></span>
+        <label class="layout-control">Width <input id="image-width" type="number" min="1" max="6000" value="1200" aria-label="Canvas width"></label>
+        <label class="layout-control">Height <input id="image-height" type="number" min="1" max="6000" value="800" aria-label="Canvas height"></label>
+        <label class="layout-control">Zoom <select id="image-zoom" aria-label="Canvas zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75" selected>75%</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
+        <label class="layout-control">Fill tolerance <input id="image-fill-tolerance" type="number" min="0" max="255" value="24" aria-label="Fill tolerance"></label>
+        <span class="image-option-divider"></span>
+        <label class="layout-control">Brightness <input id="image-brightness" type="number" min="-100" max="100" value="0" aria-label="Brightness adjustment"></label>
+        <label class="layout-control">Contrast <input id="image-contrast" type="number" min="-100" max="100" value="0" aria-label="Contrast adjustment"></label>
+        <button data-action="image-adjust">Apply</button>
+        <div class="image-effect-picker" id="image-effect-picker">
+          <span>Effect</span>
+          <button type="button" id="image-effect-toggle" class="image-effect-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="image-effect-menu"><span id="image-effect-label">Blur</span><span aria-hidden="true">▾</span></button>
+          <div class="image-effect-menu" id="image-effect-menu" hidden>
+            <details><summary>Common</summary><div class="image-effect-options"><button type="button" data-effect="blur" data-label="Blur">Blur</button><button type="button" data-effect="sharpen" data-label="Sharpen">Sharpen</button><button type="button" data-effect="sepia" data-label="Sepia">Sepia</button><button type="button" data-effect="desaturate" data-label="Desaturate">Desaturate</button><button type="button" data-effect="hue" data-label="Hue">Hue</button><button type="button" data-effect="saturate" data-label="Saturation">Saturation</button><button type="button" data-effect="invert" data-label="Negative">Negative</button><button type="button" data-effect="emboss" data-label="Emboss">Emboss</button><button type="button" data-effect="edge" data-label="Edge detect">Edge detect</button><button type="button" data-effect="mosaic" data-label="Mosaic">Mosaic</button><button type="button" data-effect="noise" data-label="Grain">Grain</button><button type="button" data-effect="vignette" data-label="Vignette">Vignette</button></div></details>
+            <details><summary>Blur</summary><div class="image-effect-options"><button type="button" data-effect="box-blur" data-label="Box blur">Box blur</button><button type="button" data-effect="gaussian-blur" data-label="Gaussian blur">Gaussian blur</button><button type="button" data-effect="stack-blur" data-label="Stack blur">Stack blur</button><button type="button" data-effect="zoom-blur" data-label="Zoom blur">Zoom blur</button><button type="button" data-effect="tilt-shift" data-label="Tilt shift">Tilt shift</button></div></details>
+            <details><summary>Artistic</summary><div class="image-effect-options"><button type="button" data-effect="black-white" data-label="Black and white">Black and white</button><button type="button" data-effect="bulge" data-label="Bulge / pinch">Bulge / pinch</button><button type="button" data-effect="denoise" data-label="Denoise">Denoise</button><button type="button" data-effect="dither" data-label="Dither">Dither</button><button type="button" data-effect="dot-screen" data-label="Dot screen">Dot screen</button><button type="button" data-effect="enrich" data-label="Enrich">Enrich</button><button type="button" data-effect="heatmap" data-label="Heatmap">Heatmap</button><button type="button" data-effect="oil" data-label="Oil paint">Oil paint</button><button type="button" data-effect="pencil" data-label="Pencil sketch">Pencil sketch</button><button type="button" data-effect="blueprint" data-label="Blueprint">Blueprint</button><button type="button" data-effect="night-vision" data-label="Night vision">Night vision</button><button type="button" data-effect="solarize" data-label="Solarize">Solarize</button><button type="button" data-effect="vintage" data-label="Vintage">Vintage</button></div></details>
+            <details><summary>Creative</summary><div class="image-effect-options"><button type="button" data-effect="pixelate" data-label="Pixelate">Pixelate</button><button type="button" data-effect="posterize" data-label="Posterize">Posterize</button><button type="button" data-effect="duotone" data-label="Duotone">Duotone</button><button type="button" data-effect="chromatic" data-label="Chromatic aberration">Chromatic aberration</button><button type="button" data-effect="glow" data-label="Glow">Glow</button><button type="button" data-effect="outline" data-label="Outline">Outline</button><button type="button" data-effect="cross-process" data-label="Cross process">Cross process</button><button type="button" data-effect="vhs" data-label="VHS tape">VHS tape</button></div></details>
+            <details><summary>Colour</summary><div class="image-effect-options"><button type="button" data-effect="gamma" data-label="Gamma">Gamma</button><button type="button" data-effect="vibrance" data-label="Vibrance">Vibrance</button><button type="button" data-effect="jpg-compression" data-label="JPEG compression">JPEG compression</button></div></details>
+            <details><summary>Instagram</summary><div class="image-effect-options"><button type="button" data-effect="1977" data-label="1977">1977</button><button type="button" data-effect="aden" data-label="Aden">Aden</button><button type="button" data-effect="clarendon" data-label="Clarendon">Clarendon</button><button type="button" data-effect="gingham" data-label="Gingham">Gingham</button><button type="button" data-effect="inkwell" data-label="Inkwell">Inkwell</button><button type="button" data-effect="lo-fi" data-label="Lo-fi">Lo-fi</button><button type="button" data-effect="toaster" data-label="Toaster">Toaster</button><button type="button" data-effect="valencia" data-label="Valencia">Valencia</button><button type="button" data-effect="x-pro-ii" data-label="X-Pro II">X-Pro II</button></div></details>
+          </div>
+          <select id="image-filter-kind" hidden>
+          <optgroup label="Common"><option value="blur">Blur</option><option value="sharpen">Sharpen</option><option value="sepia">Sepia</option><option value="desaturate">Desaturate</option><option value="hue">Hue</option><option value="saturate">Saturation</option><option value="invert">Negative</option><option value="emboss">Emboss</option><option value="edge">Edge detect</option><option value="mosaic">Mosaic</option><option value="noise">Grain</option><option value="vignette">Vignette</option></optgroup>
+          <optgroup label="Blur"><option value="box-blur">Box blur</option><option value="gaussian-blur">Gaussian blur</option><option value="stack-blur">Stack blur</option><option value="zoom-blur">Zoom blur</option><option value="tilt-shift">Tilt shift</option></optgroup>
+          <optgroup label="Artistic"><option value="black-white">Black and white</option><option value="bulge">Bulge / pinch</option><option value="denoise">Denoise</option><option value="dither">Dither</option><option value="dot-screen">Dot screen</option><option value="enrich">Enrich</option><option value="heatmap">Heatmap</option><option value="oil">Oil paint</option><option value="pencil">Pencil sketch</option><option value="blueprint">Blueprint</option><option value="night-vision">Night vision</option><option value="solarize">Solarize</option><option value="vintage">Vintage</option></optgroup>
+          <optgroup label="Creative"><option value="pixelate">Pixelate</option><option value="posterize">Posterize</option><option value="duotone">Duotone</option><option value="chromatic">Chromatic aberration</option><option value="glow">Glow</option><option value="outline">Outline</option><option value="cross-process">Cross process</option><option value="vhs">VHS tape</option></optgroup>
+          <optgroup label="Colour"><option value="gamma">Gamma</option><option value="vibrance">Vibrance</option><option value="jpg-compression">JPEG compression</option></optgroup>
+          <optgroup label="Instagram"><option value="1977">1977</option><option value="aden">Aden</option><option value="clarendon">Clarendon</option><option value="gingham">Gingham</option><option value="inkwell">Inkwell</option><option value="lo-fi">Lo-fi</option><option value="toaster">Toaster</option><option value="valencia">Valencia</option><option value="x-pro-ii">X-Pro II</option></optgroup>
+          </select>
+        </div>
+        <label class="layout-control">Amount <input id="image-filter-amount" type="number" min="1" max="100" value="12" aria-label="Filter amount"></label>
+        <button data-action="image-filter">Apply filter</button>
+        <button data-action="image-grayscale">Grayscale</button>
+        <button data-action="image-invert">Invert</button>
+        <button data-action="image-delete-selection">Delete selection</button>
+        <button data-action="image-deselect">Deselect</button>
+      </div>
+      <input id="image-input" type="file" accept=".png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,.iff,.lbm,.psd,.webp,.avif" hidden>
+    </div>
+    <div class="image-workspace">
+      <aside class="image-tool-rail" id="image-tool-rail" aria-label="Image tools">
+        <button data-tool="move" aria-pressed="true" title="Move layer (V)" aria-label="Move tool">↖</button>
+        <button data-tool="free-transform" title="Free transform (scale, rotate, skew)" aria-label="Free transform">⤢</button>
+        <button data-tool="rect" title="Rectangular selection (M)" aria-label="Rectangular selection">▭</button>
+        <button data-tool="ellipse" title="Elliptical selection" aria-label="Elliptical selection">◯</button>
+        <button data-tool="lasso" title="Freehand selection" aria-label="Lasso selection">◌</button>
+        <span class="image-tool-separator"></span>
+        <button data-tool="brush" title="Brush (B)" aria-label="Brush">✎</button>
+        <button data-tool="eraser" title="Eraser (E)" aria-label="Eraser">▰</button>
+        <button data-tool="fill" title="Fill tool (G)" aria-label="Fill tool">▧</button>
+        <button data-tool="picker" title="Colour picker (I)" aria-label="Colour picker">◉</button>
+        <button data-tool="wand" title="Magic wand selection" aria-label="Magic wand selection">✧</button>
+        <button data-tool="clone" title="Clone stamp (Alt-click to set source)" aria-label="Clone stamp">⧉</button>
+        <button data-tool="shape-rect" title="Draw a rectangle" aria-label="Rectangle shape">□</button>
+        <button data-tool="shape-ellipse" title="Draw an ellipse" aria-label="Ellipse shape">○</button>
+      </aside>
+      <div class="image-stage-scroll"><canvas id="image-stage" aria-label="Image canvas" tabindex="0"></canvas></div>
+      <aside class="image-layers" aria-label="Layers">
+        <div class="image-layer-heading"><strong>Layers</strong><button data-action="image-new-layer" title="New transparent layer">+</button></div>
+        <div class="image-layer-operations"><button data-action="image-merge-down">Merge down</button><button data-action="image-flatten">Flatten image</button></div>
+        <p class="image-layer-hint">Click a layer for controls. Free transform handles scale, rotate and skew.</p>
+        <ul id="image-layer-list" class="image-layer-list"></ul>
+      </aside>
+      <div id="image-layer-menu" class="image-layer-menu" role="dialog" aria-label="Layer controls" hidden>
+        <div class="image-layer-menu-heading"><strong id="image-layer-menu-title">Layer</strong><button type="button" data-menu-action="close" aria-label="Close layer controls">×</button></div>
+        <label>Opacity <span id="image-layer-opacity-value">100%</span><input id="image-layer-opacity" type="range" min="0" max="100" value="100"></label>
+        <label>Blend mode <select id="image-layer-blend"><option value="source-over">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option></select></label>
+        <label class="image-shadow-toggle"><input id="image-layer-shadow" type="checkbox"> Drop shadow</label>
+        <div id="image-shadow-options" class="image-shadow-options">
+          <label>Shadow colour <input id="image-shadow-color" type="color" value="#000000"></label>
+          <label>Blur <input id="image-shadow-blur" type="range" min="0" max="100" value="12"></label>
+          <label>Distance <input id="image-shadow-distance" type="range" min="0" max="200" value="8"></label>
+        </div>
+        <details class="image-transform-options">
+          <summary>Transform</summary>
+          <label>Width scale % <input id="image-transform-x" type="number" min="1" max="1000" value="100"></label>
+          <label>Height scale % <input id="image-transform-y" type="number" min="1" max="1000" value="100"></label>
+          <label>Rotate ° <input id="image-transform-rotation" type="number" min="-180" max="180" value="0"></label>
+          <label>Skew X ° <input id="image-transform-skew-x" type="number" min="-80" max="80" value="0"></label>
+          <label>Skew Y ° <input id="image-transform-skew-y" type="number" min="-80" max="80" value="0"></label>
+          <button type="button" data-menu-action="reset-transform">Reset transform</button>
+        </details>
+        <button id="image-edit-text" type="button" data-menu-action="edit-text" hidden>Edit text…</button>
+        <div class="image-layer-menu-actions">
+          <button type="button" data-menu-action="duplicate">Duplicate</button>
+          <button type="button" data-menu-action="merge-down">Merge down</button>
+          <button type="button" data-menu-action="rename">Rename</button>
+          <button type="button" data-menu-action="up">Bring forward</button>
+          <button type="button" data-menu-action="down">Send backward</button>
+          <button type="button" data-menu-action="clear">Clear layer</button>
+          <button type="button" data-menu-action="delete">Delete layer</button>
+        </div>
+      </div>
+    </div>
+    <dialog id="image-text-dialog" class="file-dialog image-text-dialog" aria-labelledby="image-text-title">
+      <form method="dialog">
+        <div class="dialog-heading"><div><h2 id="image-text-title">Add text layer</h2><p>Text is added as a new editable layer.</p></div><button value="cancel" aria-label="Close">×</button></div>
+        <div class="image-text-entry">
+          <label for="image-text-value">Text</label><textarea id="image-text-value" rows="4" maxlength="2000" placeholder="Type your text"></textarea>
+          <div class="image-text-options">
+            <label>Font <select id="image-text-font"><option>Arial</option><option>Calibri</option><option>Georgia</option><option>Roboto</option><option>Times New Roman</option><option>Verdana</option><option>Courier New</option></select></label>
+            <label>Size <input id="image-text-size" type="number" min="6" max="300" value="48"></label>
+            <label class="image-text-color">Colour <input id="image-text-color" type="color" value="#1a73e8"></label>
+            <label class="image-text-check"><input id="image-text-bold" type="checkbox"> Bold</label>
+            <label class="image-text-check"><input id="image-text-italic" type="checkbox"> Italic</label>
+            <label class="image-text-check"><input id="image-text-underline" type="checkbox"> Underline</label>
+          </div>
+        </div>
+        <div class="dialog-footer"><span></span><button value="cancel">Cancel</button><button value="add" class="primary">Add text</button></div>
+      </form>
+    </dialog>
+  </section>
 </main>
 
 <dialog id="open-dialog" class="file-dialog" aria-labelledby="open-dialog-title">
@@ -186,6 +317,6 @@
   </div>
 </dialog>
 
-<script type="module" src="/app.js?v=modern-saves-and-folders"></script>
+<script type="module" src="/app.js?v=images-editor"></script>
 </body>
 </html>

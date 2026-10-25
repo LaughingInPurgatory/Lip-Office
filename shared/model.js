@@ -18,13 +18,65 @@ export function blankSheet() {
 export const EXTENSIONS = {
   doc: 'word', dot: 'word', docx: 'word', odt: 'word', rtf: 'word', txt: 'word', md: 'word', html: 'word', htm: 'word',
   xls: 'sheet', xlt: 'sheet', xlsx: 'sheet', ods: 'sheet', csv: 'sheet',
+  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', tif: 'image', tiff: 'image', bmp: 'image',
+  iff: 'image', lbm: 'image', psd: 'image', webp: 'image', avif: 'image', lipimg: 'image',
 };
 
 /** Formats each component can write. */
 export const SAVE_FORMATS = {
   word: ['docx', 'md'],
   sheet: ['xlsx'],
+  image: ['lipimg', 'png', 'jpg', 'jpeg', 'gif', 'tif', 'tiff', 'bmp', 'iff', 'psd', 'webp', 'avif'],
 };
+
+export function normalizeImage(doc) {
+  const source = doc && typeof doc === 'object' ? doc : {};
+  const width = Math.min(6000, Math.max(1, Math.trunc(Number(source.width) || 1200)));
+  const height = Math.min(6000, Math.max(1, Math.trunc(Number(source.height) || 800)));
+  if (width * height > 36000000) throw new Error('image dimensions are too large');
+  const imageFonts = ['Arial', 'Calibri', 'Georgia', 'Roboto', 'Times New Roman', 'Verdana', 'Courier New'];
+  const layers = (Array.isArray(source.layers) ? source.layers : []).slice(0, 40).flatMap((layer, index) => {
+    if (!layer || typeof layer !== 'object' || layer.src !== '' && !parseImageDataUrl(layer.src)) return [];
+    const text = layer.text && typeof layer.text === 'object' ? {
+      content: typeof layer.text.content === 'string' ? layer.text.content.slice(0, 2000) : '',
+      font: imageFonts.includes(layer.text.font) ? layer.text.font : 'Arial',
+      size: Math.max(6, Math.min(300, Number(layer.text.size) || 48)),
+      color: /^#[0-9a-f]{6}$/i.test(layer.text.color || '') ? layer.text.color : '#1a73e8',
+      bold: layer.text.bold === true,
+      italic: layer.text.italic === true,
+      underline: layer.text.underline === true,
+    } : null;
+    const transform = layer.transform && typeof layer.transform === 'object' ? layer.transform : {};
+    return [{
+      name: (typeof layer.name === 'string' && layer.name.trim() ? layer.name.trim() : `Layer ${index + 1}`).slice(0, 80),
+      src: layer.src,
+      x: Math.max(-6000, Math.min(6000, Number(layer.x) || 0)),
+      y: Math.max(-6000, Math.min(6000, Number(layer.y) || 0)),
+      opacity: Math.max(0, Math.min(1, Number.isFinite(Number(layer.opacity)) ? Number(layer.opacity) : 1)),
+      visible: layer.visible !== false,
+      blendMode: ['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten'].includes(layer.blendMode) ? layer.blendMode : 'source-over',
+      shadow: {
+        enabled: layer.shadow?.enabled === true,
+        color: /^#[0-9a-f]{6}$/i.test(layer.shadow?.color || '') ? layer.shadow.color : '#000000',
+        blur: Math.max(0, Math.min(100, Number.isFinite(Number(layer.shadow?.blur)) ? Number(layer.shadow.blur) : 12)),
+        x: Math.max(-200, Math.min(200, Number(layer.shadow?.x) || 0)),
+        y: Math.max(-200, Math.min(200, Number(layer.shadow?.y) || 0)),
+      },
+      transform: {
+        scaleX: Math.max(.01, Math.min(10, Number(transform.scaleX) || 1)),
+        scaleY: Math.max(.01, Math.min(10, Number(transform.scaleY) || 1)),
+        rotation: Math.max(-180, Math.min(180, Number(transform.rotation) || 0)),
+        skewX: Math.max(-80, Math.min(80, Number(transform.skewX) || 0)),
+        skewY: Math.max(-80, Math.min(80, Number(transform.skewY) || 0)),
+      },
+      text,
+    }];
+  });
+  const normalizedLayers = layers.length ? layers : [{ name: 'Layer 1', src: '', x: 0, y: 0, opacity: 1, visible: true }];
+  const active = Number.isInteger(source.active) ? Math.min(normalizedLayers.length - 1, Math.max(0, source.active)) : normalizedLayers.length - 1;
+  const backgroundColor = /^#[0-9a-f]{6}$/i.test(source.backgroundColor || '') ? source.backgroundColor : '';
+  return { width, height, active, backgroundColor, fitToImage: source.fitToImage === true, layers: normalizedLayers };
+}
 
 export function extensionOf(name) {
   const match = /\.([A-Za-z0-9]+)$/.exec(String(name));

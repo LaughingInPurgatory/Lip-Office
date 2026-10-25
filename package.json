@@ -1,7 +1,7 @@
 {
   "name": "lip-office",
   "version": "1.0.0",
-  "description": "Browser-based office suite: word processor and spreadsheet with OOXML/ODF/RTF/CSV support. Zero dependencies.",
+  "description": "Browser-based office suite with Writer, Sheets, and a layered image editor.",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,5 +10,13 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "ag-psd": "^33.0.0",
+    "gifenc": "^1.0.3",
+    "gifuct-js": "^2.1.2",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.5",
+    "utif": "^3.1.0"
   }
 }

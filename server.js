@@ -25,7 +25,7 @@ const SOURCE_DOCX_CACHE_LIMIT = 128 * 1024 * 1024;
 const sourceDocxCache = new Map();
 
 const store = createStore(path.join(ROOT, 'documents'));
-await Promise.all(['Docs', 'Spreadsheets'].map((folder) => store.ensureDirectory(folder)));
+await Promise.all(['Docs', 'Spreadsheets', 'Images'].map((folder) => store.ensureDirectory(folder)));
 
 const STATIC_ROOTS = [
   { prefix: '/shared/', directory: path.join(ROOT, 'shared') },
@@ -227,7 +227,7 @@ async function handleApi(req, res, pathname, query) {
     const body = await readBody(req);
     const name = displayName(body.name);
     const buffer = decodeBase64(body.data);
-    const parsed = attachSourceDocx(parseDocument(name, buffer), name, buffer);
+    const parsed = attachSourceDocx(await parseDocument(name, buffer), name, buffer);
     return sendJson(res, 200, { name, kind: parsed.kind, doc: parsed.doc });
   }
 
@@ -263,7 +263,7 @@ async function handleApi(req, res, pathname, query) {
       return res.end(buffer);
     }
 
-    const parsed = attachSourceDocx(parseDocument(name, buffer), name, buffer);
+    const parsed = attachSourceDocx(await parseDocument(name, buffer), name, buffer);
     return sendJson(res, 200, { name, kind: parsed.kind, doc: parsed.doc });
   }
 
@@ -278,7 +278,7 @@ async function handleApi(req, res, pathname, query) {
       return sendError(res, 400, `cannot save ${kind} documents as .${format}`);
     }
     const originalDocx = kind === 'word' && format === 'docx' ? originalDocxForSave(body.doc) : null;
-    const written = originalDocx ? { buffer: originalDocx, mime: mimeFor('docx') } : serializeDocument(body.doc, format, kind);
+    const written = originalDocx ? { buffer: originalDocx, mime: mimeFor('docx') } : await serializeDocument(body.doc, format, kind);
     await store.write(name, written.buffer);
     return sendJson(res, 200, { name, kind, format, bytes: written.buffer.length });
   }

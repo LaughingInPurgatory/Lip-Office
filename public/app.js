@@ -1,14 +1,16 @@
 // Suite shell: view switching, file browsing, and save/open/import.
 import { createWordEditor } from './word.js?v=image-drop-move-resize';
 import { createSheetEditor } from './sheets.js';
+import { createImageEditor } from './images.js';
 import { SAVE_FORMATS, extensionOf, kindOf, usedRange } from '/shared/model.js';
 import { paperDimensions } from '/shared/paper.js';
 
 const ACCEPT = {
   word: '.doc,.dot,.docx,.odt,.rtf,.txt,.md,.html,.htm',
   sheet: '.xls,.xlt,.xlsx,.ods,.csv',
+  image: '.lipimg,.png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,.iff,.lbm,.psd,.webp,.avif',
 };
-const DEFAULT_FOLDER = { word: 'Docs', sheet: 'Spreadsheets' };
+const DEFAULT_FOLDER = { word: 'Docs', sheet: 'Spreadsheets', image: 'Images' };
 
 const elements = {
   tabs: [...document.querySelectorAll('.viewtab')],
@@ -40,6 +42,7 @@ const elements = {
 const editors = {
   word: createWordEditor(document.querySelector('#editor-word')),
   sheet: createSheetEditor(document.querySelector('#editor-sheet')),
+  image: createImageEditor(document.querySelector('#editor-image')),
 };
 
 let view = 'word';
@@ -144,6 +147,7 @@ function setView(next) {
   for (const tab of elements.tabs) tab.classList.toggle('active', tab.dataset.view === next);
   document.querySelector('#editor-word').classList.toggle('hidden', next !== 'word');
   document.querySelector('#editor-sheet').classList.toggle('hidden', next !== 'sheet');
+  document.querySelector('#editor-image').classList.toggle('hidden', next !== 'image');
   updateSaveBar();
 }
 
@@ -186,7 +190,7 @@ function fileRow(entry) {
   const icon = document.createElement('span');
   icon.className = 'file-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = entry.kind === 'word' ? '▤' : '▦';
+  icon.textContent = entry.kind === 'word' ? '▤' : entry.kind === 'sheet' ? '▦' : '▧';
 
   const label = document.createElement('span');
   label.className = 'file-label';
@@ -493,7 +497,7 @@ async function openDocument(name) {
     const editor = editors[payload.kind];
     if (!editor) throw new Error(`cannot open ${name}`);
     setView(payload.kind);
-    editor.setDocument(payload.doc);
+    await editor.setDocument(payload.doc);
     editor.name = name;
     updateSaveBar();
     if (elements.openDialog.open) elements.openDialog.close();
@@ -506,7 +510,13 @@ async function openDocument(name) {
 
 async function doSave(targetFolder, forceFolder = false) {
   const editor = current();
-  let doc = editor.contents();
+  let doc;
+  try {
+    doc = editor.contents(elements.format.value || SAVE_FORMATS[editor.kind][0]);
+  } catch (err) {
+    setStatus(err.message, true);
+    return false;
+  }
   if (editor.kind === 'word' && doc.sourceDocxToken && doc.sourceDocxUnchanged === false && !doc.sourceDocxLossAccepted) {
     const accepted = window.confirm('This imported Word file contains formatting the editor may not preserve after changes. Saving will rebuild it using the editor’s supported formatting. Continue?');
     if (!accepted) return false;
@@ -567,7 +577,7 @@ function doPrint() {
     const dimensions = paperDimensions(doc.pageSize);
     const [width, height] = orientation === 'landscape' ? [...dimensions].reverse() : dimensions;
     printStyle.textContent = `@page { size: ${width}in ${height}in; margin: 0; }`;
-  } else {
+  } else if (editor.kind === 'sheet') {
     const doc = editor.contents();
     const sheet = doc.sheets[doc.active];
     const refs = { ...sheet.cells, ...(sheet.images || {}) };
@@ -578,6 +588,8 @@ function doPrint() {
       #editor-sheet .grid tbody tr:nth-child(n + ${bounds.rows + 1}) { display: none; }
       #editor-sheet .grid tr > :nth-child(n + ${firstUnusedColumn}) { display: none; }
     `;
+  } else {
+    printStyle.textContent = '#editor-image .image-stage-scroll { display:block; overflow:visible; padding:0; background:#fff; } #image-stage { width:auto !important; max-width:100% !important; height:auto !important; box-shadow:none !important; }';
   }
 
   document.head.append(printStyle);
@@ -612,7 +624,7 @@ async function doImport(file) {
     const editor = editors[payload.kind];
     if (!editor) throw new Error(`cannot import ${file.name}`);
     setView(payload.kind);
-    editor.setDocument(payload.doc);
+    await editor.setDocument(payload.doc);
     editor.name = '';
     pendingSaveName = file.name;
     const importedFormat = file.name.split('.').pop().toLowerCase();
@@ -644,6 +656,12 @@ elements.confirmDialogAction.addEventListener('click', confirmDialogAction);
 elements.save.addEventListener('click', doSave);
 elements.download.addEventListener('click', doDownload);
 elements.print.addEventListener('click', doPrint);
+document.querySelector('#editor-image').addEventListener('images:newdocument', () => {
+  editors.image.name = '';
+  pendingSaveName = '';
+  updateSaveBar();
+  setStatus('New image. Add layers, then press Save.');
+});
 
 elements.importButton.addEventListener('click', () => elements.importInput.click());
 elements.importInput.addEventListener('change', () => {
@@ -660,6 +678,8 @@ const clearFileDropState = () => {
   fileDragDepth = 0;
   documentDropZone.classList.remove('file-drop-active');
 };
+// Child editors may stop a handled drop from bubbling to the page listener.
+documentDropZone.addEventListener('drop', clearFileDropState, true);
 documentDropZone.addEventListener('dragenter', (event) => {
   if (!hasDroppedFiles(event)) return;
   event.preventDefault();

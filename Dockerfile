@@ -2,7 +2,8 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-COPY --chown=node:node package.json server.js ./
+COPY --chown=node:node package.json pnpm-lock.yaml server.js ./
+RUN corepack enable && pnpm install --prod --frozen-lockfile
 COPY --chown=node:node lib ./lib
 COPY --chown=node:node public ./public
 COPY --chown=node:node shared ./shared

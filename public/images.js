@@ -96,6 +96,23 @@ export function createImageEditor(root) {
     target.restore();
   }
 
+  function commitLayerTransform(layer) {
+    const transform = layer.transform;
+    if (!layer.x && !layer.y && transform.scaleX === 1 && transform.scaleY === 1
+      && !transform.rotation && !transform.skewX && !transform.skewY) return;
+    const raster = blankCanvas(), target = raster.getContext('2d');
+    target.translate(layer.x + width / 2, layer.y + height / 2);
+    target.rotate(transform.rotation * Math.PI / 180);
+    target.transform(1, Math.tan(transform.skewY * Math.PI / 180), Math.tan(transform.skewX * Math.PI / 180), 1, 0, 0);
+    target.scale(transform.scaleX, transform.scaleY);
+    target.drawImage(layer.canvas, -width / 2, -height / 2);
+    layer.canvas = raster;
+    layer.x = 0;
+    layer.y = 0;
+    layer.transform = { scaleX: 1, scaleY: 1, rotation: 0, skewX: 0, skewY: 0 };
+    layer.text = null;
+  }
+
   function paint() {
     canvas.width = width;
     canvas.height = height;
@@ -396,7 +413,7 @@ export function createImageEditor(root) {
         angle: Math.atan2(p.y - centerPoint.y, p.x - centerPoint.x) };
       return;
     }
-    if (tool === 'fill') { checkpoint(); fillAt(p); return; }
+    if (tool === 'fill') { checkpoint(); commitLayerTransform(layers[active]); fillAt(p); paint(); return; }
     if (tool === 'picker') {
       const previousSelection = selection;
       selection = null;
@@ -412,11 +429,12 @@ export function createImageEditor(root) {
       return;
     }
     if (tool === 'clone') {
-      if (event.altKey) { cloneSource = layerPoint(p, layers[active]); return; }
+      if (event.altKey) { cloneSource = p; return; }
       if (!cloneSource) { window.alert('Alt-click the canvas to set a clone source first.'); return; }
       canvas.setPointerCapture(event.pointerId);
       checkpoint();
-      gesture = { tool, start: p, last: p, source: cloneSource };
+      commitLayerTransform(layers[active]);
+      gesture = { tool, start: p, last: p, source: layerPoint(cloneSource, layers[active]) };
       return;
     }
     canvas.setPointerCapture(event.pointerId);
@@ -425,12 +443,14 @@ export function createImageEditor(root) {
       gesture = { tool, start: p, current: p, points: [[p.x, p.y]] };
     } else if (tool.startsWith('shape-')) {
       checkpoint();
+      commitLayerTransform(layers[active]);
       gesture = { tool, start: p, current: p };
     } else if (tool === 'move') {
       checkpoint();
       gesture = { tool, start: p, x: layers[active].x, y: layers[active].y };
     } else {
       checkpoint();
+      commitLayerTransform(layers[active]);
       gesture = { tool, last: p };
       const layerContext = layers[active].canvas.getContext('2d');
       layerContext.save();

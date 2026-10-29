@@ -5,16 +5,20 @@ A small office suite that runs in a browser, served by Node.js.
 The interface follows the system light/dark preference and includes a theme toggle;
 your choice is remembered in this browser.
 
-Two components:
+Three components:
 
-- **Word processor** (`public/word.js`) — a Word-style editing surface with headings,
+- **Writer** (`public/word.js`) — a Word-style editing surface with headings,
   bold/italic/underline/strikethrough, super/subscript, colour, bullet and numbered
   lists, indentation, alignment, hyperlinks, tables, rules, embedded images that can be
   dropped, moved and resized, and undo/redo. Opens
   `.doc`, `.dot`, `.docx`, `.odt`, `.rtf`, `.txt` and `.html`; saves `.docx`.
-- **Spreadsheet** (`public/sheets.js`) — a grid with a formula bar, keyboard navigation,
+- **Sheets** (`public/sheets.js`) — a grid with a formula bar, keyboard navigation,
   multiple sheets, and formulas with cell/range references. Opens `.xls`, `.xlt`,
   `.xlsx`, `.ods` and `.csv`; saves `.xlsx`.
+- **Images** (`public/images.js`) — a layered raster editor with selection, drawing,
+  text, transforms, filters, and effects. Painting on a transformed layer commits its
+  transform before applying strokes, so the full canvas remains paintable; the layer
+  stays separate and Undo restores its previous transform.
 
 There are **no npm dependencies**. Node's built-in `zlib` is enough to read and write
 the ZIP containers that `.docx`, `.xlsx`, `.odt` and `.ods` really are, and the OOXML
@@ -79,7 +83,7 @@ pulling it. Do not put that token in the Compose file.
 
 ## Using it
 
-Pick **Writer** or **Sheets**, then:
+Pick **Writer**, **Sheets**, or **Images**, then:
 
 - **New** — start an empty file.
 - **Import…** — open a file from your computer. It is converted in the browser session

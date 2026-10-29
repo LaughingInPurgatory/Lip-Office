@@ -224,8 +224,15 @@
         <label class="layout-control">Fill tolerance <input id="image-fill-tolerance" type="number" min="0" max="255" value="24" aria-label="Fill tolerance"></label>
         <span class="image-option-divider"></span>
         <button data-action="image-adjustments">Adjustments</button>
-
-        <button data-action="image-invert">Invert colours</button>
+        <div class="image-layers-picker" id="image-layers-picker">
+          <button type="button" id="image-layers-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="image-layers">Layers <span aria-hidden="true">▾</span></button>
+          <aside class="image-layers" id="image-layers" aria-label="Layers" hidden>
+            <div class="image-layer-heading"><strong>Layers</strong><button data-action="image-new-layer" title="New transparent layer">+</button></div>
+            <div class="image-layer-operations"><button data-action="image-merge-down">Merge down</button><button data-action="image-flatten">Flatten image</button></div>
+            <p class="image-layer-hint">Click a layer for controls. Free transform handles scale, rotate and skew; painting commits the transform.</p>
+            <ul id="image-layer-list" class="image-layer-list"></ul>
+          </aside>
+        </div>
       </div>
       <input id="image-input" type="file" accept=".png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,.iff,.lbm,.psd,.webp,.avif" hidden>
     </div>
@@ -285,12 +292,6 @@
         </div>
       </aside>
       <div class="image-stage-scroll"><canvas id="image-stage" aria-label="Image canvas" tabindex="0"></canvas></div>
-      <aside class="image-layers" aria-label="Layers">
-        <div class="image-layer-heading"><strong>Layers</strong><button data-action="image-new-layer" title="New transparent layer">+</button></div>
-        <div class="image-layer-operations"><button data-action="image-merge-down">Merge down</button><button data-action="image-flatten">Flatten image</button></div>
-        <p class="image-layer-hint">Click a layer for controls. Free transform handles scale, rotate and skew; painting commits the transform.</p>
-        <ul id="image-layer-list" class="image-layer-list"></ul>
-      </aside>
       <div id="image-layer-menu" class="image-layer-menu" role="dialog" aria-label="Layer controls" hidden>
         <div class="image-layer-menu-heading"><strong id="image-layer-menu-title">Layer</strong><button type="button" data-menu-action="close" aria-label="Close layer controls">×</button></div>
         <label>Opacity <span id="image-layer-opacity-value">100%</span><input id="image-layer-opacity" type="range" min="0" max="100" value="100"></label>
@@ -363,6 +364,7 @@
             <label>Saturation <span><input data-adjustment="saturation" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
             <label>Vibrance <span><input data-adjustment="vibrance" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
             <label class="image-adjustment-toggle"><input id="image-adjust-grayscale" type="checkbox"> Grayscale</label>
+            <label class="image-adjustment-toggle"><input id="image-adjust-invert" type="checkbox"> Invert colours</label>
           </details>
           <details><summary>Shadows &amp; Highlights</summary>
             <label>Shadows <span><input data-adjustment="shadows" type="range" min="-100" max="100" value="0"><output>0</output></span></label>

@@ -18,6 +18,9 @@ export function createImageEditor(root) {
   const shadowBlur = root.querySelector('#image-shadow-blur');
   const shadowDistance = root.querySelector('#image-shadow-distance');
   const layerMenu = root.querySelector('#image-layer-menu');
+  const layersPicker = root.querySelector('#image-layers-picker');
+  const layersToggle = root.querySelector('#image-layers-toggle');
+  const layersPanel = root.querySelector('#image-layers');
   const effectPicker = root.querySelector('#image-effect-picker');
   const effectToggle = root.querySelector('#image-effect-toggle');
   const effectMenu = root.querySelector('#image-effect-menu');
@@ -65,6 +68,7 @@ export function createImageEditor(root) {
   const adjustmentsDialog = root.querySelector('#image-adjustments-dialog');
   const adjustmentInputs = [...adjustmentsDialog.querySelectorAll('[data-adjustment]')];
   const grayscaleAdjustmentInput = root.querySelector('#image-adjust-grayscale');
+  const invertAdjustmentInput = root.querySelector('#image-adjust-invert');
   const resizeDialog = root.querySelector('#image-resize-dialog');
   const resizeWidthInput = root.querySelector('#image-resize-width');
   const resizeHeightInput = root.querySelector('#image-resize-height');
@@ -1138,9 +1142,9 @@ export function createImageEditor(root) {
     return [hue(p, q, h + 1 / 3) * 255, hue(p, q, h) * 255, hue(p, q, h - 1 / 3) * 255];
   }
 
-  function applyAdjustments(settings, grayscale = false) {
+  function applyAdjustments(settings, grayscale = false, invert = false) {
     const layer = layers[active];
-    if (!layer || (!grayscale && Object.values(settings).every((value) => value === 0))) return;
+    if (!layer || (!grayscale && !invert && Object.values(settings).every((value) => value === 0))) return;
     checkpoint();
     try {
       const target = layer.canvas.getContext('2d', { willReadFrequently: true });
@@ -1149,9 +1153,12 @@ export function createImageEditor(root) {
       const exposure = 2 ** (settings.exposure / 20);
       const clamp = (value) => Math.max(0, Math.min(255, value));
       for (let i = 0; i < pixels.data.length; i += 4) {
-        let r = clamp(factor * (pixels.data[i] * exposure - 128) + 128 + settings.brightness * 2.55);
-        let g = clamp(factor * (pixels.data[i + 1] * exposure - 128) + 128 + settings.brightness * 2.55);
-        let b = clamp(factor * (pixels.data[i + 2] * exposure - 128) + 128 + settings.brightness * 2.55);
+        const source = invert
+          ? [255 - pixels.data[i], 255 - pixels.data[i + 1], 255 - pixels.data[i + 2]]
+          : [pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]];
+        let r = clamp(factor * (source[0] * exposure - 128) + 128 + settings.brightness * 2.55);
+        let g = clamp(factor * (source[1] * exposure - 128) + 128 + settings.brightness * 2.55);
+        let b = clamp(factor * (source[2] * exposure - 128) + 128 + settings.brightness * 2.55);
         const luminance = (.2126 * r + .7152 * g + .0722 * b) / 255;
         const tone = settings.shadows * (1 - luminance) ** 2 * .8 + settings.highlights * luminance ** 2 * .8;
         r = clamp(r + tone); g = clamp(g + tone); b = clamp(b + tone);
@@ -1168,31 +1175,6 @@ export function createImageEditor(root) {
       paint();
     } catch {
       window.alert('This image is too large for adjustments in this browser.');
-    }
-  }
-
-  function adjustLayer(adjustment) {
-    const layer = layers[active];
-    if (!layer) return;
-    checkpoint();
-    try {
-      const target = layer.canvas.getContext('2d', { willReadFrequently: true });
-      const pixels = target.getImageData(0, 0, width, height);
-      for (let i = 0; i < pixels.data.length; i += 4) {
-        if (adjustment === 'invert') {
-          pixels.data[i] = 255 - pixels.data[i];
-          pixels.data[i + 1] = 255 - pixels.data[i + 1];
-          pixels.data[i + 2] = 255 - pixels.data[i + 2];
-        } else if (adjustment === 'grayscale') {
-          const gray = Math.round(.299 * pixels.data[i] + .587 * pixels.data[i + 1] + .114 * pixels.data[i + 2]);
-          pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = gray;
-        }
-      }
-      target.putImageData(pixels, 0, 0);
-      layer.text = null;
-      paint();
-    } catch {
-      window.alert('This image is too large for an adjustment in this browser.');
     }
   }
 
@@ -1515,6 +1497,11 @@ export function createImageEditor(root) {
     if (!effectPicker.contains(event.target)) closeEffectMenu();
     const button = event.target.closest('button');
     if (!button) return;
+    if (button === layersToggle) {
+      layersPanel.hidden = !layersPanel.hidden;
+      layersToggle.setAttribute('aria-expanded', String(!layersPanel.hidden));
+      return;
+    }
     if (button === effectToggle) {
       effectMenu.hidden = !effectMenu.hidden;
       if (!effectMenu.hidden) effectMenu.querySelectorAll('details').forEach((category) => { category.open = false; });
@@ -1580,7 +1567,6 @@ export function createImageEditor(root) {
     if (button.dataset.action === 'image-resize') openResizeDialog();
     if (button.dataset.action === 'image-add-text') openTextDialog();
     if (button.dataset.action === 'image-adjustments') adjustmentsDialog.showModal();
-    if (button.dataset.action === 'image-invert') adjustLayer('invert');
     if (button.dataset.action === 'image-undo') undo();
     if (button.dataset.action === 'image-redo') redo();
     if (button.dataset.action?.startsWith('image-') && button.dataset.action.includes('layer')) layerAction(button.dataset.action);
@@ -1606,9 +1592,10 @@ export function createImageEditor(root) {
   adjustmentsDialog.addEventListener('close', () => {
     if (adjustmentsDialog.returnValue === 'apply') {
       const settings = Object.fromEntries(adjustmentInputs.map((input) => [input.dataset.adjustment, Number(input.value)]));
-      applyAdjustments(settings, grayscaleAdjustmentInput.checked);
+      applyAdjustments(settings, grayscaleAdjustmentInput.checked, invertAdjustmentInput.checked);
     }
     grayscaleAdjustmentInput.checked = false;
+    invertAdjustmentInput.checked = false;
     for (const input of adjustmentInputs) {
       input.value = '0';
       input.nextElementSibling.value = input.dataset.adjustment === 'hue' ? '0°' : '0';
@@ -1631,6 +1618,10 @@ export function createImageEditor(root) {
   }
   window.addEventListener('pointerdown', (event) => {
     if (!layerMenu.hidden && !layerMenu.contains(event.target) && !list.contains(event.target)) layerMenu.hidden = true;
+    if (!layersPanel.hidden && !layersPicker.contains(event.target)) {
+      layersPanel.hidden = true;
+      layersToggle.setAttribute('aria-expanded', 'false');
+    }
     if (!effectMenu.hidden && !effectPicker.contains(event.target)) closeEffectMenu();
     if (!selectionActionsMenu.hidden && !selectionActionsPicker.contains(event.target)) closeSelectionActionsMenu();
     if (!brushMenu.hidden && !brushPicker.contains(event.target)) closeBrushMenu();
@@ -1739,6 +1730,7 @@ export function createImageEditor(root) {
     if (event.key === 'Escape' && !brushMenu.hidden) { closeBrushMenu(); return; }
     if (event.key === 'Escape' && !selectionMenu.hidden) { closeSelectionMenu(); return; }
     if (event.key === 'Escape' && Object.values(shapeSettings).some(({ menu }) => !menu.hidden)) { closeShapeMenus(); return; }
+    if (event.key === 'Escape' && !layersPanel.hidden) { layersPanel.hidden = true; layersToggle.setAttribute('aria-expanded', 'false'); return; }
     if (event.key === 'Escape' && !layerMenu.hidden) { layerMenu.hidden = true; return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     else if (event.key.toLowerCase() === 'v') setTool('move');

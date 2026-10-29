@@ -580,6 +580,9 @@ export function createImageEditor(root) {
   }
 
   function drawShape(context, shape, x, y, w, h, style) {
+    context.globalAlpha = 1;
+    context.shadowColor = 'transparent';
+    context.shadowBlur = 0;
     context.beginPath();
     if (shape === 'shape-ellipse') context.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     else context.rect(x, y, w, h);

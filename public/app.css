@@ -396,7 +396,7 @@ main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px;
 .image-toolbar .layout-control { color: var(--muted); font-size: 12px; }
 .image-toolbar button { border-radius: 6px; }
 .image-effect-picker { position: relative; display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
-.image-effect-toggle { display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 116px; padding-inline: 9px; border-radius: 6px; background: var(--surface); text-align: left; }
+.image-effect-toggle { display: inline-flex; align-items: center; gap: 5px; }
 .image-effect-menu { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; width: 250px; max-height: min(360px, 65vh); padding: 5px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
 .image-effect-menu[hidden] { display: none; }
 .image-effect-menu details + details { border-top: 1px solid var(--line); }

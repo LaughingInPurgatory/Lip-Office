@@ -397,6 +397,12 @@ main.file-drop-active { outline: 2px dashed var(--accent); outline-offset: -6px;
 .image-toolbar button { border-radius: 6px; }
 .image-effect-picker { position: relative; display: inline-flex; align-items: center; }
 .image-effect-toggle { display: inline-flex; align-items: center; gap: 5px; }
+.image-selection-actions-picker { position: relative; }
+.image-selection-actions-menu { position: absolute; z-index: 31; top: calc(100% + 5px); left: 0; display: grid; width: 210px; gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+.image-selection-actions-menu[hidden] { display: none; }
+.image-selection-actions-menu button { width: 100%; min-height: 30px; padding: 5px 8px; border-color: transparent; background: transparent; text-align: left; }
+.image-selection-actions-menu button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.image-selection-actions-menu > strong { padding: 7px 8px 3px; border-top: 1px solid var(--line); font-size: 12px; }
 .image-effect-menu { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; width: 250px; max-height: min(360px, 65vh); padding: 5px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
 .image-effect-menu[hidden] { display: none; }
 .image-effect-menu details + details { border-top: 1px solid var(--line); }

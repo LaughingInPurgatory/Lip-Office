@@ -21,6 +21,9 @@ export function createImageEditor(root) {
   const effectPicker = root.querySelector('#image-effect-picker');
   const effectToggle = root.querySelector('#image-effect-toggle');
   const effectMenu = root.querySelector('#image-effect-menu');
+  const selectionActionsPicker = root.querySelector('#image-selection-actions-picker');
+  const selectionActionsToggle = root.querySelector('#image-selection-actions-toggle');
+  const selectionActionsMenu = root.querySelector('#image-selection-actions-menu');
   const brushPicker = root.querySelector('#image-brush-picker');
   const brushToggle = root.querySelector('#image-brush-toggle');
   const brushMenu = root.querySelector('#image-brush-menu');
@@ -76,6 +79,7 @@ export function createImageEditor(root) {
   let active = 0;
   let tool = 'move';
   let selection = null;
+  let selectionMode = 'new';
   let gesture = null;
   let undoStack = [];
   let redoStack = [];
@@ -482,8 +486,9 @@ export function createImageEditor(root) {
     }
     canvas.setPointerCapture(event.pointerId);
     if (['rect', 'ellipse', 'lasso'].includes(tool)) {
-      selection = null;
-      gesture = { tool, start: p, current: p, points: [[p.x, p.y]] };
+      const mode = selectionMode;
+      if (mode === 'new') selection = null;
+      gesture = { tool, start: p, current: p, points: [[p.x, p.y]], mode };
     } else if (tool.startsWith('shape-')) {
       checkpoint();
       commitLayerTransform(layers[active]);
@@ -615,10 +620,10 @@ export function createImageEditor(root) {
     if (!gesture) return;
     if (gesture.tool === 'free-transform') syncLayerMenu();
     else if (['rect', 'ellipse'].includes(gesture.tool)) {
-      selection = { type: gesture.tool, x: Math.min(gesture.start.x, gesture.current.x), y: Math.min(gesture.start.y, gesture.current.y),
-        w: Math.abs(gesture.current.x - gesture.start.x), h: Math.abs(gesture.current.y - gesture.start.y) };
+      applySelection({ type: gesture.tool, x: Math.min(gesture.start.x, gesture.current.x), y: Math.min(gesture.start.y, gesture.current.y),
+        w: Math.abs(gesture.current.x - gesture.start.x), h: Math.abs(gesture.current.y - gesture.start.y) }, gesture.mode);
     } else if (gesture.tool === 'lasso') {
-      selection = { type: 'lasso', points: gesture.points };
+      applySelection({ type: 'lasso', points: gesture.points }, gesture.mode);
     } else if (gesture.tool.startsWith('shape-')) {
       const layer = layers[active];
       const target = layer.canvas.getContext('2d');
@@ -831,9 +836,12 @@ export function createImageEditor(root) {
   }
 
   function selectSimilarPixels(pointOnCanvas) {
+    const previousSelection = selection;
     selection = null;
     paint();
     const image = ctx.getImageData(0, 0, width, height);
+    selection = previousSelection;
+    paint();
     const sx = Math.max(0, Math.min(width - 1, Math.floor(pointOnCanvas.x)));
     const sy = Math.max(0, Math.min(height - 1, Math.floor(pointOnCanvas.y)));
     const start = (sy * width + sx) * 4;
@@ -867,25 +875,77 @@ export function createImageEditor(root) {
         }
       }
     }
-    selection = { type: 'mask', data: mask, bounds: maxX < 0 ? null : { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } };
+    applySelection({ type: 'mask', data: mask, bounds: maxX < 0 ? null : { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } });
     paint();
   }
 
-  function selectionBounds() {
-    if (!selection) return null;
-    if (selection.type === 'mask') {
-      if (selection.bounds) return selection.bounds;
+  function selectionBounds(value = selection) {
+    if (!value) return null;
+    if (value.type === 'mask') {
+      if (value.bounds) return value.bounds;
       let minX = width, minY = height, maxX = -1, maxY = -1;
-      for (let i = 0; i < selection.data.length; i++) if (selection.data[i]) {
+      for (let i = 0; i < value.data.length; i++) if (value.data[i]) {
         const x = i % width, y = Math.floor(i / width);
         minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
       }
       return maxX < 0 ? null : { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
     }
-    if (selection.type !== 'lasso') return { x: selection.x, y: selection.y, w: selection.w, h: selection.h };
-    const xs = selection.points.map(([x]) => x), ys = selection.points.map(([, y]) => y);
+    if (value.type !== 'lasso') return { x: value.x, y: value.y, w: value.w, h: value.h };
+    if (!value.points.length) return null;
+    const xs = value.points.map(([x]) => x), ys = value.points.map(([, y]) => y);
     const x = Math.min(...xs), y = Math.min(...ys);
     return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+  }
+
+  function selectionMask(value) {
+    if (value.type === 'mask') return value.data;
+    const mask = new Uint8ClampedArray(width * height);
+    const bounds = selectionBounds(value);
+    if (!bounds) return mask;
+    const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
+    const right = Math.min(width, Math.ceil(bounds.x + bounds.w)), bottom = Math.min(height, Math.ceil(bounds.y + bounds.h));
+    for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
+      const px = x + .5, py = y + .5;
+      let inside = false;
+      if (value.type === 'rect') inside = px >= value.x && px < value.x + value.w && py >= value.y && py < value.y + value.h;
+      else if (value.type === 'ellipse') {
+        const rx = value.w / 2, ry = value.h / 2;
+        inside = rx > 0 && ry > 0 && ((px - value.x - rx) / rx) ** 2 + ((py - value.y - ry) / ry) ** 2 <= 1;
+      } else if (value.type === 'lasso') {
+        for (let i = 0, j = value.points.length - 1; i < value.points.length; j = i++) {
+          const [xi, yi] = value.points[i], [xj, yj] = value.points[j];
+          if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+        }
+      }
+      if (inside) mask[y * width + x] = 255;
+    }
+    return mask;
+  }
+
+  function selectionFromMask(data) {
+    let minX = width, minY = height, maxX = -1, maxY = -1;
+    for (let i = 0; i < data.length; i++) if (data[i]) {
+      const x = i % width, y = Math.floor(i / width);
+      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return maxX < 0 ? null : { type: 'mask', data, bounds: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } };
+  }
+
+  function applySelection(next, mode = selectionMode) {
+    if (mode === 'new') { selection = next; return; }
+    if (!selection) { selection = mode === 'add' ? next : null; return; }
+    const combined = selectionMask(selection), added = selectionMask(next);
+    for (let i = 0; i < combined.length; i++) combined[i] = mode === 'add'
+      ? (combined[i] || added[i] ? 255 : 0)
+      : (combined[i] && !added[i] ? 255 : 0);
+    selection = selectionFromMask(combined);
+  }
+
+  function invertSelection() {
+    const mask = selection ? selectionMask(selection) : new Uint8ClampedArray(width * height).fill(255);
+    if (selection) for (let i = 0; i < mask.length; i++) mask[i] = mask[i] ? 0 : 255;
+    selection = selectionFromMask(mask);
+    paint();
   }
 
   function cropToSelection() {
@@ -1446,6 +1506,11 @@ export function createImageEditor(root) {
     effectToggle.setAttribute('aria-expanded', 'false');
   }
 
+  function closeSelectionActionsMenu() {
+    selectionActionsMenu.hidden = true;
+    selectionActionsToggle.setAttribute('aria-expanded', 'false');
+  }
+
   root.addEventListener('click', (event) => {
     if (!effectPicker.contains(event.target)) closeEffectMenu();
     const button = event.target.closest('button');
@@ -1454,6 +1519,21 @@ export function createImageEditor(root) {
       effectMenu.hidden = !effectMenu.hidden;
       if (!effectMenu.hidden) effectMenu.querySelectorAll('details').forEach((category) => { category.open = false; });
       effectToggle.setAttribute('aria-expanded', String(!effectMenu.hidden));
+      return;
+    }
+    if (button === selectionActionsToggle) {
+      selectionActionsMenu.hidden = !selectionActionsMenu.hidden;
+      selectionActionsToggle.setAttribute('aria-expanded', String(!selectionActionsMenu.hidden));
+      return;
+    }
+    if (selectionActionsMenu.contains(button)) {
+      if (button.dataset.selectionMode) {
+        selectionMode = button.dataset.selectionMode;
+        selectionActionsMenu.querySelectorAll('[data-selection-mode]').forEach((option) => option.setAttribute('aria-pressed', String(option === button)));
+      } else if (button.dataset.selectionAction === 'delete') deleteSelection();
+      else if (button.dataset.selectionAction === 'deselect') { selection = null; paint(); }
+      else if (button.dataset.selectionAction === 'invert') invertSelection();
+      closeSelectionActionsMenu();
       return;
     }
     if (button === brushToggle) {
@@ -1496,8 +1576,6 @@ export function createImageEditor(root) {
     if (button.dataset.tool) setTool(button.dataset.tool);
     if (button.dataset.action === 'image-add') input.click();
     if (button.dataset.action === 'image-create') newDocument();
-    if (button.dataset.action === 'image-delete-selection') deleteSelection();
-    if (button.dataset.action === 'image-deselect') { selection = null; paint(); }
     if (button.dataset.action === 'image-crop') cropToSelection();
     if (button.dataset.action === 'image-resize') openResizeDialog();
     if (button.dataset.action === 'image-add-text') openTextDialog();
@@ -1554,6 +1632,7 @@ export function createImageEditor(root) {
   window.addEventListener('pointerdown', (event) => {
     if (!layerMenu.hidden && !layerMenu.contains(event.target) && !list.contains(event.target)) layerMenu.hidden = true;
     if (!effectMenu.hidden && !effectPicker.contains(event.target)) closeEffectMenu();
+    if (!selectionActionsMenu.hidden && !selectionActionsPicker.contains(event.target)) closeSelectionActionsMenu();
     if (!brushMenu.hidden && !brushPicker.contains(event.target)) closeBrushMenu();
     if (!selectionMenu.hidden && !selectionPicker.contains(event.target)) closeSelectionMenu();
     if (Object.values(shapeSettings).some(({ menu }) => !menu.hidden) && !Object.values(shapeSettings).some(({ picker }) => picker.contains(event.target))) closeShapeMenus();
@@ -1656,6 +1735,7 @@ export function createImageEditor(root) {
   window.addEventListener('keydown', (event) => {
     if (root.classList.contains('hidden') || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     if (event.key === 'Escape' && !effectMenu.hidden) { closeEffectMenu(); return; }
+    if (event.key === 'Escape' && !selectionActionsMenu.hidden) { closeSelectionActionsMenu(); return; }
     if (event.key === 'Escape' && !brushMenu.hidden) { closeBrushMenu(); return; }
     if (event.key === 'Escape' && !selectionMenu.hidden) { closeSelectionMenu(); return; }
     if (event.key === 'Escape' && Object.values(shapeSettings).some(({ menu }) => !menu.hidden)) { closeShapeMenus(); return; }

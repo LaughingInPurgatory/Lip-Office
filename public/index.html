@@ -178,6 +178,18 @@
         <button data-action="image-add-text">Add text</button>
         <button data-action="image-crop">Crop</button>
         <button data-action="image-resize">Resize / Scale</button>
+        <div class="image-selection-actions-picker" id="image-selection-actions-picker">
+          <button type="button" id="image-selection-actions-toggle" aria-label="Selection options" aria-haspopup="true" aria-expanded="false" aria-controls="image-selection-actions-menu">Selection <span aria-hidden="true">▾</span></button>
+          <div class="image-selection-actions-menu" id="image-selection-actions-menu" role="group" aria-label="Selection options" hidden>
+            <button type="button" data-selection-action="delete">Delete selection</button>
+            <button type="button" data-selection-action="deselect">Deselect</button>
+            <button type="button" data-selection-action="invert">Invert selection</button>
+            <strong>Selection mode</strong>
+            <button type="button" data-selection-mode="new" aria-pressed="true">New selection</button>
+            <button type="button" data-selection-mode="add" aria-pressed="false">Add to selection</button>
+            <button type="button" data-selection-mode="subtract" aria-pressed="false">Subtract from selection</button>
+          </div>
+        </div>
         <div class="image-effect-picker" id="image-effect-picker">
           <button type="button" id="image-effect-toggle" class="image-effect-toggle" aria-label="Effects" aria-haspopup="true" aria-expanded="false" aria-controls="image-effect-menu"><span>Effects</span><span aria-hidden="true">▾</span></button>
           <div class="image-effect-menu" id="image-effect-menu" hidden>
@@ -213,9 +225,7 @@
         <span class="image-option-divider"></span>
         <button data-action="image-adjustments">Adjustments</button>
 
-        <button data-action="image-invert">Invert</button>
-        <button data-action="image-delete-selection">Delete selection</button>
-        <button data-action="image-deselect">Deselect</button>
+        <button data-action="image-invert">Invert colours</button>
       </div>
       <input id="image-input" type="file" accept=".png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,.iff,.lbm,.psd,.webp,.avif" hidden>
     </div>

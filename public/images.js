@@ -23,6 +23,12 @@ export function createImageEditor(root) {
   const effectMenu = root.querySelector('#image-effect-menu');
   const effectLabel = root.querySelector('#image-effect-label');
   const effectChoices = [...root.querySelectorAll('[data-effect]')];
+  const effectDialog = root.querySelector('#image-effect-dialog');
+  const effectDialogTitle = root.querySelector('#image-effect-title');
+  const effectOptionLabel = root.querySelector('#image-filter-option-label');
+  const effectAmount = root.querySelector('#image-filter-amount');
+  const effectColorRow = root.querySelector('#image-filter-color-row');
+  const effectColor = root.querySelector('#image-filter-color');
   const layerMenuTitle = root.querySelector('#image-layer-menu-title');
   const editTextButton = root.querySelector('#image-edit-text');
   const backgroundColorInput = root.querySelector('#image-background-color');
@@ -42,6 +48,16 @@ export function createImageEditor(root) {
   };
   const brushTypeInput = root.querySelector('#image-brush-type');
   const textDialog = root.querySelector('#image-text-dialog');
+  const adjustmentsDialog = root.querySelector('#image-adjustments-dialog');
+  const adjustmentInputs = [...adjustmentsDialog.querySelectorAll('[data-adjustment]')];
+  const grayscaleAdjustmentInput = root.querySelector('#image-adjust-grayscale');
+  const resizeDialog = root.querySelector('#image-resize-dialog');
+  const resizeWidthInput = root.querySelector('#image-resize-width');
+  const resizeHeightInput = root.querySelector('#image-resize-height');
+  const resizeScaleInput = root.querySelector('#image-resize-scale');
+  const resizeLockInput = root.querySelector('#image-resize-lock');
+  const resizeResamplingInput = root.querySelector('#image-resize-resampling');
+  const resizeSummary = root.querySelector('#image-resize-summary');
   const textInput = root.querySelector('#image-text-value');
   let width = 1200;
   let height = 800;
@@ -56,6 +72,7 @@ export function createImageEditor(root) {
   let backgroundColor = '';
   let textEditIndex = null;
   let cloneSource = null;
+  let resizeBase = { width: 1200, height: 800 };
 
   const blankCanvas = () => {
     const layer = document.createElement('canvas');
@@ -864,9 +881,53 @@ export function createImageEditor(root) {
     paint();
   }
 
+  function updateResizeSummary() {
+    resizeSummary.textContent = `${resizeWidthInput.value} × ${resizeHeightInput.value} px`;
+  }
+
+  function openResizeDialog() {
+    resizeBase = { width, height };
+    resizeWidthInput.value = String(width);
+    resizeHeightInput.value = String(height);
+    resizeScaleInput.value = '100';
+    resizeLockInput.checked = true;
+    updateResizeSummary();
+    resizeDialog.showModal();
+  }
+
+  function updateResizeDimensions(changed) {
+    const clampDimension = (value) => Math.max(1, Math.min(6000, Math.round(value)));
+    const fitDimensions = (w, h) => {
+      const factor = Math.min(1, 6000 / w, 6000 / h);
+      return { width: clampDimension(w * factor), height: clampDimension(h * factor) };
+    };
+    let nextWidth = Number(resizeWidthInput.value), nextHeight = Number(resizeHeightInput.value);
+    if (changed === 'scale') {
+      const scale = Math.max(1, Math.min(500, Number(resizeScaleInput.value) || 100)) / 100;
+      ({ width: nextWidth, height: nextHeight } = fitDimensions(resizeBase.width * scale, resizeBase.height * scale));
+      resizeWidthInput.value = String(nextWidth);
+      resizeHeightInput.value = String(nextHeight);
+    } else if (resizeLockInput.checked && changed === 'width' && Number.isFinite(nextWidth)) {
+      ({ width: nextWidth, height: nextHeight } = fitDimensions(nextWidth, nextWidth * resizeBase.height / resizeBase.width));
+      resizeWidthInput.value = String(nextWidth);
+      resizeHeightInput.value = String(nextHeight);
+      resizeScaleInput.value = String(Math.max(1, Math.min(500, Math.round(nextWidth / resizeBase.width * 100))));
+    } else if (resizeLockInput.checked && changed === 'height' && Number.isFinite(nextHeight)) {
+      ({ width: nextWidth, height: nextHeight } = fitDimensions(nextHeight * resizeBase.width / resizeBase.height, nextHeight));
+      resizeWidthInput.value = String(nextWidth);
+      resizeHeightInput.value = String(nextHeight);
+      resizeScaleInput.value = String(Math.max(1, Math.min(500, Math.round(nextHeight / resizeBase.height * 100))));
+    } else if (Number.isFinite(nextWidth) && Number.isFinite(nextHeight)) {
+      resizeWidthInput.value = String(clampDimension(nextWidth));
+      resizeHeightInput.value = String(clampDimension(nextHeight));
+      resizeScaleInput.value = String(Math.max(1, Math.min(500, Math.round(nextWidth / resizeBase.width * 100))));
+    }
+    updateResizeSummary();
+  }
+
   function resizeImage() {
-    const nextWidth = Math.min(6000, Math.max(1, Math.trunc(Number(widthInput.value) || width)));
-    const nextHeight = Math.min(6000, Math.max(1, Math.trunc(Number(heightInput.value) || height)));
+    const nextWidth = Math.min(6000, Math.max(1, Math.trunc(Number(resizeWidthInput.value) || width)));
+    const nextHeight = Math.min(6000, Math.max(1, Math.trunc(Number(resizeHeightInput.value) || height)));
     if (nextWidth * nextHeight > 36000000) { window.alert('Image is too large. Maximum is 36 megapixels.'); return; }
     if (nextWidth === width && nextHeight === height) return;
     checkpoint();
@@ -875,13 +936,18 @@ export function createImageEditor(root) {
       const resized = document.createElement('canvas');
       resized.width = nextWidth;
       resized.height = nextHeight;
-      resized.getContext('2d').drawImage(layer.canvas, layer.x * scaleX, layer.y * scaleY, width * scaleX, height * scaleY);
+      const target = resized.getContext('2d');
+      target.imageSmoothingEnabled = resizeResamplingInput.value !== 'pixelated';
+      target.imageSmoothingQuality = 'high';
+      target.drawImage(layer.canvas, layer.x * scaleX, layer.y * scaleY, width * scaleX, height * scaleY);
       layer.canvas = resized;
       layer.x = 0;
       layer.y = 0;
     }
     width = nextWidth;
     height = nextHeight;
+    widthInput.value = String(width);
+    heightInput.value = String(height);
     selection = null;
     paint();
   }
@@ -952,6 +1018,68 @@ export function createImageEditor(root) {
     paint();
   }
 
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (delta) {
+      s = l > .5 ? delta / (2 - max - min) : delta / (max + min);
+      if (max === r) h = (g - b) / delta + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / delta + 2;
+      else h = (r - g) / delta + 4;
+      h /= 6;
+    }
+    return [h, s, l];
+  }
+
+  function hslToRgb(h, s, l) {
+    if (!s) return [l * 255, l * 255, l * 255];
+    const hue = (p, q, t) => {
+      if (t < 0) t++;
+      if (t > 1) t--;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    return [hue(p, q, h + 1 / 3) * 255, hue(p, q, h) * 255, hue(p, q, h - 1 / 3) * 255];
+  }
+
+  function applyAdjustments(settings, grayscale = false) {
+    const layer = layers[active];
+    if (!layer || (!grayscale && Object.values(settings).every((value) => value === 0))) return;
+    checkpoint();
+    try {
+      const target = layer.canvas.getContext('2d', { willReadFrequently: true });
+      const pixels = target.getImageData(0, 0, width, height);
+      const factor = (259 * (settings.contrast + 255)) / (255 * (259 - settings.contrast));
+      const exposure = 2 ** (settings.exposure / 20);
+      const clamp = (value) => Math.max(0, Math.min(255, value));
+      for (let i = 0; i < pixels.data.length; i += 4) {
+        let r = clamp(factor * (pixels.data[i] * exposure - 128) + 128 + settings.brightness * 2.55);
+        let g = clamp(factor * (pixels.data[i + 1] * exposure - 128) + 128 + settings.brightness * 2.55);
+        let b = clamp(factor * (pixels.data[i + 2] * exposure - 128) + 128 + settings.brightness * 2.55);
+        const luminance = (.2126 * r + .7152 * g + .0722 * b) / 255;
+        const tone = settings.shadows * (1 - luminance) ** 2 * .8 + settings.highlights * luminance ** 2 * .8;
+        r = clamp(r + tone); g = clamp(g + tone); b = clamp(b + tone);
+        let [h, s, l] = rgbToHsl(r, g, b);
+        s *= Math.max(0, 1 + settings.saturation / 100);
+        const vibrance = settings.vibrance / 100;
+        s = Math.max(0, Math.min(1, s + (vibrance > 0 ? 1 - s : s) * vibrance));
+        [r, g, b] = hslToRgb((h + settings.hue / 360 + 1) % 1, Math.min(1, s), l);
+        if (grayscale) r = g = b = .299 * r + .587 * g + .114 * b;
+        pixels.data[i] = clamp(r); pixels.data[i + 1] = clamp(g); pixels.data[i + 2] = clamp(b);
+      }
+      target.putImageData(pixels, 0, 0);
+      layer.text = null;
+      paint();
+    } catch {
+      window.alert('This image is too large for adjustments in this browser.');
+    }
+  }
+
   function adjustLayer(adjustment) {
     const layer = layers[active];
     if (!layer) return;
@@ -959,9 +1087,6 @@ export function createImageEditor(root) {
     try {
       const target = layer.canvas.getContext('2d', { willReadFrequently: true });
       const pixels = target.getImageData(0, 0, width, height);
-      const brightness = Math.max(-100, Math.min(100, Number(root.querySelector('#image-brightness').value) || 0)) * 2.55;
-      const contrast = Math.max(-100, Math.min(100, Number(root.querySelector('#image-contrast').value) || 0));
-      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
       for (let i = 0; i < pixels.data.length; i += 4) {
         if (adjustment === 'invert') {
           pixels.data[i] = 255 - pixels.data[i];
@@ -970,8 +1095,6 @@ export function createImageEditor(root) {
         } else if (adjustment === 'grayscale') {
           const gray = Math.round(.299 * pixels.data[i] + .587 * pixels.data[i + 1] + .114 * pixels.data[i + 2]);
           pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = gray;
-        } else {
-          for (let channel = 0; channel < 3; channel++) pixels.data[i + channel] = Math.max(0, Math.min(255, factor * (pixels.data[i + channel] - 128) + 128 + brightness));
         }
       }
       target.putImageData(pixels, 0, 0);
@@ -986,7 +1109,7 @@ export function createImageEditor(root) {
     const layer = layers[active];
     if (!layer) return;
     const kind = root.querySelector('#image-filter-kind').value;
-    const amount = Math.max(1, Math.min(100, Number(root.querySelector('#image-filter-amount').value) || 1));
+    const amount = Math.max(1, Math.min(100, Number(effectAmount.value) || 1));
     const filtered = document.createElement('canvas');
     filtered.width = width;
     filtered.height = height;
@@ -1175,31 +1298,31 @@ export function createImageEditor(root) {
         '1977': [1.08, .94, 1.05, 12], aden: [1.04, .92, .98, 8], clarendon: [1.18, 1.12, 1.12, 0], gingham: [.92, .92, .94, 10],
         inkwell: [1, 1, 1, 0], 'lo-fi': [1.18, 1.08, 1.15, -4], toaster: [1.1, .94, .82, 16], valencia: [1.08, 1.02, .92, 8], 'x-pro-ii': [1.22, 1.08, 1.16, -8],
       }[kind];
-      const duotoneHighlight = root.querySelector('#image-brush-color').value.match(/[0-9a-f]{2}/gi).map((part) => parseInt(part, 16));
+      const duotoneHighlight = effectColor.value.match(/[0-9a-f]{2}/gi).map((part) => parseInt(part, 16));
       const luminance = (r, g, b) => .2126 * r + .7152 * g + .0722 * b;
       for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4, r = source.data[i], g = source.data[i + 1], b = source.data[i + 2], lum = luminance(r, g, b);
         let nr = r, ng = g, nb = b;
         if (kind === 'black-white') nr = ng = nb = lum < amount * 2.55 ? 0 : 255;
-        else if (kind === 'desaturate' || kind === 'inkwell') { const mix = kind === 'inkwell' ? 1 : amount / 100; nr += (lum - r) * mix; ng += (lum - g) * mix; nb += (lum - b) * mix; }
+        else if (kind === 'desaturate' || kind === 'inkwell') { const mix = amount / 100; nr += (lum - r) * mix; ng += (lum - g) * mix; nb += (lum - b) * mix; }
         else if (kind === 'hue') { const angle = amount * 3.6 * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle); nr = (.213 + cos * .787 - sin * .213) * r + (.715 - cos * .715 - sin * .715) * g + (.072 - cos * .072 + sin * .928) * b; ng = (.213 - cos * .213 + sin * .143) * r + (.715 + cos * .285 + sin * .140) * g + (.072 - cos * .072 - sin * .283) * b; nb = (.213 - cos * .213 - sin * .787) * r + (.715 - cos * .715 + sin * .715) * g + (.072 + cos * .928 + sin * .072) * b; }
         else if (kind === 'saturate') { const f = Math.max(0, 1 + amount / 25); nr = lum + (r - lum) * f; ng = lum + (g - lum) * f; nb = lum + (b - lum) * f; }
-        else if (kind === 'invert') nr = 255 - r, ng = 255 - g, nb = 255 - b;
+        else if (kind === 'invert') { const mix = amount / 100; nr += (255 - 2 * r) * mix; ng += (255 - 2 * g) * mix; nb += (255 - 2 * b) * mix; }
         else if (kind === 'noise' || kind === 'vintage') { const grain = kind === 'noise' ? (Math.random() * 2 - 1) * amount * .65 : ((Math.random() * 2 - 1) * amount * .12); nr += grain; ng += grain; nb += grain; if (kind === 'vintage') nr += 14; nb -= 10; }
         else if (kind === 'gamma') { const gamma = 2 ** ((amount - 50) / 25); nr = 255 * (r / 255) ** (1 / gamma); ng = 255 * (g / 255) ** (1 / gamma); nb = 255 * (b / 255) ** (1 / gamma); }
         else if (kind === 'vibrance') { const avg = (r + g + b) / 3, max = Math.max(r, g, b), boost = (max - avg) * (-amount / 100) * .02; nr += (max - r) * boost; ng += (max - g) * boost; nb += (max - b) * boost; }
-        else if (kind === 'heatmap') { const t = lum / 255 * 4, segment = Math.min(3, Math.floor(t)), f = t - segment, stops = [[0,0,80],[0,80,255],[0,230,180],[255,220,0],[220,0,0]]; nr = stops[segment][0] * (1 - f) + stops[segment + 1][0] * f; ng = stops[segment][1] * (1 - f) + stops[segment + 1][1] * f; nb = stops[segment][2] * (1 - f) + stops[segment + 1][2] * f; }
+        else if (kind === 'heatmap') { const t = lum / 255 * 4, segment = Math.min(3, Math.floor(t)), f = t - segment, mix = amount / 100, stops = [[0,0,80],[0,80,255],[0,230,180],[255,220,0],[220,0,0]]; nr = r + (stops[segment][0] * (1 - f) + stops[segment + 1][0] * f - r) * mix; ng = g + (stops[segment][1] * (1 - f) + stops[segment + 1][1] * f - g) * mix; nb = b + (stops[segment][2] * (1 - f) + stops[segment + 1][2] * f - b) * mix; }
         else if (kind === 'solarize') { const threshold = 255 - amount * 2.55; nr = r > threshold ? 255 - r : r; ng = g > threshold ? 255 - g : g; nb = b > threshold ? 255 - b : b; }
-        else if (kind === 'blueprint') { nr = Math.min(255, 8 + lum * .15); ng = Math.min(255, 35 + lum * .55); nb = Math.min(255, 70 + lum * .72); }
-        else if (kind === 'night-vision') { nr = lum * .08; ng = Math.min(255, lum * 1.45); nb = lum * .12; }
+        else if (kind === 'blueprint') { const mix = amount / 100; nr += (Math.min(255, 8 + lum * .15) - r) * mix; ng += (Math.min(255, 35 + lum * .55) - g) * mix; nb += (Math.min(255, 70 + lum * .72) - b) * mix; }
+        else if (kind === 'night-vision') { const mix = amount / 100; nr += (lum * .08 - r) * mix; ng += (Math.min(255, lum * 1.45) - g) * mix; nb += (lum * .12 - b) * mix; }
         else if (kind === 'pencil') { const edge = Math.abs(lum - luminance(source.data[Math.max(0, i - 4)], source.data[Math.max(0, i - 3)], source.data[Math.max(0, i - 2)])); nr = ng = nb = Math.max(0, 255 - edge * (1 + amount / 20)); }
-        else if (kind === 'dither') { const threshold = (bayer[(y % 4) * 4 + x % 4] / 16) * 255; nr = ng = nb = lum > threshold ? 255 : 0; }
-        else if (kind === 'dot-screen') { const pattern = (Math.sin(x * .22) * Math.sin(y * .22) + 1) * 127.5; nr = ng = nb = lum > pattern ? 255 : 0; }
+        else if (kind === 'dither') { const threshold = (bayer[(y % 4) * 4 + x % 4] / 16) * 255, dithered = lum > threshold ? 255 : 0, mix = amount / 100; nr = ng = nb = lum + (dithered - lum) * mix; }
+        else if (kind === 'dot-screen') { const frequency = .04 + amount * .006, pattern = (Math.sin(x * frequency) * Math.sin(y * frequency) + 1) * 127.5; nr = ng = nb = lum > pattern ? 255 : 0; }
         else if (kind === 'enrich') { const contrast = 1.12 + amount / 160; nr = (r - 128) * contrast + 128; ng = (g - 128) * contrast + 128; nb = (b - 128) * contrast + 128; }
         else if (kind === 'posterize') { const levels = Math.max(2, Math.round(2 + amount * .14)), step = 255 / (levels - 1); nr = Math.round(r / step) * step; ng = Math.round(g / step) * step; nb = Math.round(b / step) * step; }
         else if (kind === 'duotone') { const mix = Math.min(1, .35 + amount * .0065), t = lum / 255; const tone = [18 + (duotoneHighlight[0] - 18) * t, 24 + (duotoneHighlight[1] - 24) * t, 48 + (duotoneHighlight[2] - 48) * t]; nr += (tone[0] - nr) * mix; ng += (tone[1] - ng) * mix; nb += (tone[2] - nb) * mix; }
         else if (kind === 'cross-process') { nr = 255 * (r / 255) ** .82 + amount * .18; ng = 255 * (g / 255) ** 1.08; nb = 255 * (b / 255) ** .78 - amount * .12; }
-        else if (instagram) { const [contrast, saturation, warm, tint] = instagram; nr = ((r - 128) * contrast + 128) * saturation + tint; ng = ((g - 128) * contrast + 128) * saturation; nb = ((b - 128) * contrast + 128) * saturation / warm - tint * .25; }
+        else if (instagram) { const [contrast, saturation, warm, tint] = instagram, mix = amount / 100; nr = r + (((r - 128) * contrast + 128) * saturation + tint - r) * mix; ng = g + (((g - 128) * contrast + 128) * saturation - g) * mix; nb = b + (((b - 128) * contrast + 128) * saturation / warm - tint * .25 - b) * mix; }
         output.data[i] = Math.max(0, Math.min(255, nr)); output.data[i + 1] = Math.max(0, Math.min(255, ng)); output.data[i + 2] = Math.max(0, Math.min(255, nb)); output.data[i + 3] = source.data[i + 3];
       }
       filterContext.putImageData(output, 0, 0);
@@ -1221,6 +1344,17 @@ export function createImageEditor(root) {
   function runFilter() {
     applyFilter().catch((error) => window.alert(error.message || 'Could not apply this effect.'));
   }
+
+  const effectOptionNames = {
+    blur: 'Radius', 'box-blur': 'Radius', 'gaussian-blur': 'Radius', 'stack-blur': 'Radius',
+    'zoom-blur': 'Strength', 'tilt-shift': 'Blur strength', sharpen: 'Strength', emboss: 'Strength', edge: 'Strength',
+    hue: 'Hue shift', saturate: 'Saturation', desaturate: 'Desaturation', 'black-white': 'Threshold',
+    pixelate: 'Pixel size', mosaic: 'Pixel size', 'jpg-compression': 'Compression', 'dot-screen': 'Pattern density',
+    dither: 'Intensity', invert: 'Intensity', heatmap: 'Intensity', blueprint: 'Intensity', 'night-vision': 'Intensity',
+    inkwell: 'Intensity', '1977': 'Intensity', aden: 'Intensity', clarendon: 'Intensity', gingham: 'Intensity',
+    'lo-fi': 'Intensity', toaster: 'Intensity', valencia: 'Intensity', 'x-pro-ii': 'Intensity',
+    bulge: 'Distortion', vignette: 'Strength', duotone: 'Intensity',
+  };
 
   function layerAction(action) {
     const layer = layers[active];
@@ -1292,11 +1426,15 @@ export function createImageEditor(root) {
       return;
     }
     if (button.dataset.effect) {
-      root.querySelector('#image-filter-kind').value = button.dataset.effect;
+      const kind = button.dataset.effect;
+      root.querySelector('#image-filter-kind').value = kind;
       effectLabel.textContent = button.dataset.label;
       effectChoices.forEach((choice) => choice.setAttribute('aria-pressed', String(choice === button)));
       closeEffectMenu();
-      runFilter();
+      effectDialogTitle.textContent = button.dataset.label;
+      effectOptionLabel.textContent = effectOptionNames[kind] || 'Amount';
+      effectColorRow.hidden = kind !== 'duotone';
+      effectDialog.showModal();
       return;
     }
     if (button.dataset.tool) setTool(button.dataset.tool);
@@ -1305,11 +1443,9 @@ export function createImageEditor(root) {
     if (button.dataset.action === 'image-delete-selection') deleteSelection();
     if (button.dataset.action === 'image-deselect') { selection = null; paint(); }
     if (button.dataset.action === 'image-crop') cropToSelection();
-    if (button.dataset.action === 'image-resize') resizeImage();
+    if (button.dataset.action === 'image-resize') openResizeDialog();
     if (button.dataset.action === 'image-add-text') openTextDialog();
-    if (button.dataset.action === 'image-adjust') adjustLayer('adjust');
-    if (button.dataset.action === 'image-filter') runFilter();
-    if (button.dataset.action === 'image-grayscale') adjustLayer('grayscale');
+    if (button.dataset.action === 'image-adjustments') adjustmentsDialog.showModal();
     if (button.dataset.action === 'image-invert') adjustLayer('invert');
     if (button.dataset.action === 'image-undo') undo();
     if (button.dataset.action === 'image-redo') redo();
@@ -1330,6 +1466,30 @@ export function createImageEditor(root) {
     if (textDialog.returnValue === 'add') addTextLayer();
     else textEditIndex = null;
   });
+  effectDialog.addEventListener('close', () => {
+    if (effectDialog.returnValue === 'apply') runFilter();
+  });
+  adjustmentsDialog.addEventListener('close', () => {
+    if (adjustmentsDialog.returnValue === 'apply') {
+      const settings = Object.fromEntries(adjustmentInputs.map((input) => [input.dataset.adjustment, Number(input.value)]));
+      applyAdjustments(settings, grayscaleAdjustmentInput.checked);
+    }
+    grayscaleAdjustmentInput.checked = false;
+    for (const input of adjustmentInputs) {
+      input.value = '0';
+      input.nextElementSibling.value = input.dataset.adjustment === 'hue' ? '0°' : '0';
+    }
+  });
+  for (const input of adjustmentInputs) input.addEventListener('input', () => {
+    input.nextElementSibling.value = `${input.value}${input.dataset.adjustment === 'hue' ? '°' : ''}`;
+  });
+  resizeDialog.addEventListener('close', () => {
+    if (resizeDialog.returnValue === 'apply') resizeImage();
+  });
+  resizeWidthInput.addEventListener('input', () => updateResizeDimensions('width'));
+  resizeHeightInput.addEventListener('input', () => updateResizeDimensions('height'));
+  resizeScaleInput.addEventListener('input', () => updateResizeDimensions('scale'));
+  resizeLockInput.addEventListener('change', () => updateResizeDimensions('width'));
   input.addEventListener('change', () => { addImage(input.files?.[0]).catch((err) => window.alert(err.message)); input.value = ''; });
   window.addEventListener('pointerdown', (event) => {
     if (!layerMenu.hidden && !layerMenu.contains(event.target) && !list.contains(event.target)) layerMenu.hidden = true;

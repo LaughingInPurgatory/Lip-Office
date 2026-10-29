@@ -172,7 +172,7 @@
         <button data-action="image-add">Add image</button>
         <button data-action="image-add-text">Add text</button>
         <button data-action="image-crop">Crop</button>
-        <button data-action="image-resize">Resize</button>
+        <button data-action="image-resize">Resize / Scale</button>
         <span class="image-toolbar-spacer"></span>
         <button data-action="image-undo" title="Undo (Ctrl+Z)">Undo</button>
         <button data-action="image-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
@@ -184,14 +184,12 @@
         <label class="color-control" title="Canvas background">Background <input id="image-background-color" type="color" value="#ffffff" aria-label="Canvas background colour"></label>
         <label class="image-transparent-toggle"><input id="image-background-transparent" type="checkbox" checked> Transparent</label>
         <span class="image-option-divider"></span>
-        <label class="layout-control">Width <input id="image-width" type="number" min="1" max="6000" value="1200" aria-label="Canvas width"></label>
-        <label class="layout-control">Height <input id="image-height" type="number" min="1" max="6000" value="800" aria-label="Canvas height"></label>
+        <input id="image-width" type="hidden" value="1200">
+        <input id="image-height" type="hidden" value="800">
         <label class="layout-control">Zoom <select id="image-zoom" aria-label="Canvas zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75" selected>75%</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
         <label class="layout-control">Fill tolerance <input id="image-fill-tolerance" type="number" min="0" max="255" value="24" aria-label="Fill tolerance"></label>
         <span class="image-option-divider"></span>
-        <label class="layout-control">Brightness <input id="image-brightness" type="number" min="-100" max="100" value="0" aria-label="Brightness adjustment"></label>
-        <label class="layout-control">Contrast <input id="image-contrast" type="number" min="-100" max="100" value="0" aria-label="Contrast adjustment"></label>
-        <button data-action="image-adjust">Apply</button>
+        <button data-action="image-adjustments">Adjustments</button>
         <div class="image-effect-picker" id="image-effect-picker">
           <span>Effect</span>
           <button type="button" id="image-effect-toggle" class="image-effect-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="image-effect-menu"><span id="image-effect-label">Blur</span><span aria-hidden="true">▾</span></button>
@@ -212,9 +210,6 @@
           <optgroup label="Instagram"><option value="1977">1977</option><option value="aden">Aden</option><option value="clarendon">Clarendon</option><option value="gingham">Gingham</option><option value="inkwell">Inkwell</option><option value="lo-fi">Lo-fi</option><option value="toaster">Toaster</option><option value="valencia">Valencia</option><option value="x-pro-ii">X-Pro II</option></optgroup>
           </select>
         </div>
-        <label class="layout-control">Amount <input id="image-filter-amount" type="number" min="1" max="100" value="12" aria-label="Filter amount"></label>
-        <button data-action="image-filter">Apply filter</button>
-        <button data-action="image-grayscale">Grayscale</button>
         <button data-action="image-invert">Invert</button>
         <button data-action="image-delete-selection">Delete selection</button>
         <button data-action="image-deselect">Deselect</button>
@@ -291,6 +286,56 @@
           </div>
         </div>
         <div class="dialog-footer"><span></span><button value="cancel">Cancel</button><button value="add" class="primary">Add text</button></div>
+      </form>
+    </dialog>
+    <dialog id="image-effect-dialog" class="file-dialog image-effect-dialog" aria-labelledby="image-effect-title">
+      <form method="dialog">
+        <div class="dialog-heading"><div><h2 id="image-effect-title">Effect</h2><p>Adjust the effect, then apply it to the active layer.</p></div><button value="cancel" aria-label="Close">×</button></div>
+        <div class="image-effect-settings">
+          <label for="image-filter-amount"><span id="image-filter-option-label">Amount</span><input id="image-filter-amount" type="range" min="1" max="100" value="12"></label>
+          <label id="image-filter-color-row" hidden>Highlight colour <input id="image-filter-color" type="color" value="#1a73e8"></label>
+        </div>
+        <div class="dialog-footer"><span></span><button value="cancel">Cancel</button><button value="apply" class="primary">Apply</button></div>
+      </form>
+    </dialog>
+    <dialog id="image-adjustments-dialog" class="file-dialog image-adjustments-dialog" aria-labelledby="image-adjustments-title">
+      <form method="dialog">
+        <div class="dialog-heading"><div><h2 id="image-adjustments-title">Adjustments</h2><p>Adjust colour and tone on the active layer.</p></div><button value="cancel" aria-label="Close">×</button></div>
+        <div class="image-adjustments-settings">
+          <details open><summary>Tone</summary>
+            <label>Brightness <span><input data-adjustment="brightness" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+            <label>Contrast <span><input data-adjustment="contrast" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+            <label>Exposure <span><input data-adjustment="exposure" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+          </details>
+          <details><summary>Colour</summary>
+            <label>Hue <span><input data-adjustment="hue" type="range" min="-180" max="180" value="0"><output>0°</output></span></label>
+            <label>Saturation <span><input data-adjustment="saturation" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+            <label>Vibrance <span><input data-adjustment="vibrance" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+            <label class="image-adjustment-toggle"><input id="image-adjust-grayscale" type="checkbox"> Grayscale</label>
+          </details>
+          <details><summary>Shadows &amp; Highlights</summary>
+            <label>Shadows <span><input data-adjustment="shadows" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+            <label>Highlights <span><input data-adjustment="highlights" type="range" min="-100" max="100" value="0"><output>0</output></span></label>
+          </details>
+        </div>
+        <div class="dialog-footer"><span></span><button value="cancel">Cancel</button><button value="apply" class="primary">Apply</button></div>
+      </form>
+    </dialog>
+    <dialog id="image-resize-dialog" class="file-dialog image-resize-dialog" aria-labelledby="image-resize-title">
+      <form method="dialog">
+        <div class="dialog-heading"><div><h2 id="image-resize-title">Resize / Scale</h2><p>Scale all visible and hidden layers together.</p></div><button value="cancel" aria-label="Close">×</button></div>
+        <div class="image-resize-settings">
+          <div class="image-resize-dimensions">
+            <label>Width (px) <input id="image-resize-width" type="number" min="1" max="6000" value="1200"></label>
+            <label>Height (px) <input id="image-resize-height" type="number" min="1" max="6000" value="800"></label>
+          </div>
+          <label class="image-resize-scale">Scale (%) <input id="image-resize-scale" type="number" min="1" max="500" value="100"></label>
+          <label class="image-resize-lock"><input id="image-resize-lock" type="checkbox" checked> Keep proportions</label>
+          <label class="image-resize-resampling">Resampling
+            <select id="image-resize-resampling"><option value="smooth">Smooth — photos</option><option value="pixelated">Pixelated — crisp edges</option></select>
+          </label>
+        </div>
+        <div class="dialog-footer"><span id="image-resize-summary">1200 × 800 px</span><button value="cancel">Cancel</button><button value="apply" class="primary">Apply</button></div>
       </form>
     </dialog>
   </section>

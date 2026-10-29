@@ -701,7 +701,9 @@ documentDropZone.addEventListener('drop', async (event) => {
   event.preventDefault();
   clearFileDropState();
   const files = [...(event.dataTransfer.files || [])];
-  const documents = files.filter((file) => kindOf(file.name));
+  // File drops stay in the currently open editor. In particular, images dropped
+  // on Writer or Sheets must never bubble into an Images import.
+  const documents = files.filter((file) => kindOf(file.name) === view);
   if (documents.length > 1) {
     setStatus('Drop one document at a time.', true);
     return;

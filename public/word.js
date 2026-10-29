@@ -29,6 +29,10 @@ export function createWordEditor(root) {
   const marginSelect = root.querySelector('#word-margin');
   const editables = [header, footer];
   const toolbar = root.querySelector('#word-toolbar');
+  const alignPicker = root.querySelector('#word-align-picker');
+  const alignToggle = root.querySelector('#word-align-toggle');
+  const alignMenu = root.querySelector('#word-align-menu');
+  const alignCurrent = root.querySelector('#word-align-current');
   const colour = root.querySelector('#word-colour');
   const highlightColour = root.querySelector('#word-highlight-colour');
   const formatSelect = toolbar.querySelector('[data-command="formatBlock"]');
@@ -72,6 +76,11 @@ export function createWordEditor(root) {
     if (options.restore) reveal();
     document.execCommand(command, false, value);
     syncToolbar();
+  }
+
+  function closeAlignmentMenu() {
+    alignMenu.hidden = true;
+    alignToggle.setAttribute('aria-expanded', 'false');
   }
 
   function applyFontSize(size) {
@@ -410,6 +419,11 @@ export function createWordEditor(root) {
       button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     }
 
+    alignCurrent.textContent = ['Centre', 'Right', 'Left'].find((label, index) => {
+      try { return document.queryCommandState(['justifyCenter', 'justifyRight', 'justifyLeft'][index]); }
+      catch { return false; }
+    }) || 'Left';
+
     try {
       const block = String(document.queryCommandValue('formatBlock')).toUpperCase();
       const match = [...formatSelect.options].find((option) => option.value === block);
@@ -574,7 +588,17 @@ export function createWordEditor(root) {
   toolbar.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
+    if (button === alignToggle) {
+      alignMenu.hidden = !alignMenu.hidden;
+      alignToggle.setAttribute('aria-expanded', String(!alignMenu.hidden));
+      return;
+    }
     const { command, action } = button.dataset;
+    if (alignMenu.contains(button) && command) {
+      runCommand(command);
+      closeAlignmentMenu();
+      return;
+    }
 
     if (action === 'link') {
       const url = window.prompt('Link address:', 'https://');
@@ -591,6 +615,13 @@ export function createWordEditor(root) {
     if (action === 'image-larger') return resizeSelectedImage(1);
     if (command) runCommand(command);
     return undefined;
+  });
+
+  window.addEventListener('pointerdown', (event) => {
+    if (!alignMenu.hidden && !alignPicker.contains(event.target)) closeAlignmentMenu();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !alignMenu.hidden) closeAlignmentMenu();
   });
 
   toolbar.addEventListener('change', (event) => {

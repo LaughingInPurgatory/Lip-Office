@@ -97,9 +97,14 @@
       <button data-command="outdent" title="Decrease indent">Outdent</button>
       <button data-command="indent" title="Increase indent">Indent</button>
       <span class="divider"></span>
-      <button data-command="justifyLeft" title="Align left">Left</button>
-      <button data-command="justifyCenter" title="Centre">Centre</button>
-      <button data-command="justifyRight" title="Align right">Right</button>
+      <div class="word-align-picker" id="word-align-picker">
+        <button type="button" id="word-align-toggle" class="word-align-toggle" aria-label="Text alignment" aria-haspopup="true" aria-expanded="false" aria-controls="word-align-menu"><span id="word-align-current">Left</span><span aria-hidden="true">▾</span></button>
+        <div id="word-align-menu" class="word-align-menu" role="group" aria-label="Text alignment" hidden>
+          <button type="button" data-command="justifyLeft" title="Align left">Left</button>
+          <button type="button" data-command="justifyCenter" title="Centre">Centre</button>
+          <button type="button" data-command="justifyRight" title="Align right">Right</button>
+        </div>
+      </div>
       <span class="divider"></span>
       <button data-action="link" title="Insert hyperlink">Link</button>
       <button data-action="unlink" title="Remove hyperlink">Unlink</button>
@@ -173,26 +178,8 @@
         <button data-action="image-add-text">Add text</button>
         <button data-action="image-crop">Crop</button>
         <button data-action="image-resize">Resize / Scale</button>
-        <span class="image-toolbar-spacer"></span>
-        <button data-action="image-undo" title="Undo (Ctrl+Z)">Undo</button>
-        <button data-action="image-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-      </div>
-      <div class="image-optionsbar">
-        <label class="layout-control">Brush size <input id="image-brush-size" type="number" min="1" max="300" value="18" aria-label="Brush size"></label>
-        <label class="layout-control">Brush type <select id="image-brush-type" aria-label="Brush type"><option value="round">Round</option><option value="pencil">Pencil</option><option value="marker">Marker</option><option value="airbrush">Airbrush</option><option value="square">Square</option></select></label>
-        <label class="color-control" title="Brush colour">Colour <input id="image-brush-color" type="color" value="#1a73e8" aria-label="Brush colour"></label>
-        <label class="color-control" title="Canvas background">Background <input id="image-background-color" type="color" value="#ffffff" aria-label="Canvas background colour"></label>
-        <label class="image-transparent-toggle"><input id="image-background-transparent" type="checkbox" checked> Transparent</label>
-        <span class="image-option-divider"></span>
-        <input id="image-width" type="hidden" value="1200">
-        <input id="image-height" type="hidden" value="800">
-        <label class="layout-control">Zoom <select id="image-zoom" aria-label="Canvas zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75" selected>75%</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
-        <label class="layout-control">Fill tolerance <input id="image-fill-tolerance" type="number" min="0" max="255" value="24" aria-label="Fill tolerance"></label>
-        <span class="image-option-divider"></span>
-        <button data-action="image-adjustments">Adjustments</button>
         <div class="image-effect-picker" id="image-effect-picker">
-          <span>Effect</span>
-          <button type="button" id="image-effect-toggle" class="image-effect-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="image-effect-menu"><span id="image-effect-label">Blur</span><span aria-hidden="true">▾</span></button>
+          <button type="button" id="image-effect-toggle" class="image-effect-toggle" aria-label="Effects" aria-haspopup="true" aria-expanded="false" aria-controls="image-effect-menu"><span>Effects</span><span aria-hidden="true">▾</span></button>
           <div class="image-effect-menu" id="image-effect-menu" hidden>
             <details><summary>Common</summary><div class="image-effect-options"><button type="button" data-effect="blur" data-label="Blur">Blur</button><button type="button" data-effect="sharpen" data-label="Sharpen">Sharpen</button><button type="button" data-effect="sepia" data-label="Sepia">Sepia</button><button type="button" data-effect="desaturate" data-label="Desaturate">Desaturate</button><button type="button" data-effect="hue" data-label="Hue">Hue</button><button type="button" data-effect="saturate" data-label="Saturation">Saturation</button><button type="button" data-effect="invert" data-label="Negative">Negative</button><button type="button" data-effect="emboss" data-label="Emboss">Emboss</button><button type="button" data-effect="edge" data-label="Edge detect">Edge detect</button><button type="button" data-effect="mosaic" data-label="Mosaic">Mosaic</button><button type="button" data-effect="noise" data-label="Grain">Grain</button><button type="button" data-effect="vignette" data-label="Vignette">Vignette</button></div></details>
             <details><summary>Blur</summary><div class="image-effect-options"><button type="button" data-effect="box-blur" data-label="Box blur">Box blur</button><button type="button" data-effect="gaussian-blur" data-label="Gaussian blur">Gaussian blur</button><button type="button" data-effect="stack-blur" data-label="Stack blur">Stack blur</button><button type="button" data-effect="zoom-blur" data-label="Zoom blur">Zoom blur</button><button type="button" data-effect="tilt-shift" data-label="Tilt shift">Tilt shift</button></div></details>
@@ -210,6 +197,22 @@
           <optgroup label="Instagram"><option value="1977">1977</option><option value="aden">Aden</option><option value="clarendon">Clarendon</option><option value="gingham">Gingham</option><option value="inkwell">Inkwell</option><option value="lo-fi">Lo-fi</option><option value="toaster">Toaster</option><option value="valencia">Valencia</option><option value="x-pro-ii">X-Pro II</option></optgroup>
           </select>
         </div>
+        <span class="image-toolbar-spacer"></span>
+        <button data-action="image-undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button data-action="image-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      </div>
+      <div class="image-optionsbar">
+        <label class="color-control" title="Brush colour">Colour <input id="image-brush-color" type="color" value="#1a73e8" aria-label="Brush colour"></label>
+        <label class="color-control" title="Canvas background">Background <input id="image-background-color" type="color" value="#ffffff" aria-label="Canvas background colour"></label>
+        <label class="image-transparent-toggle"><input id="image-background-transparent" type="checkbox" checked> Transparent</label>
+        <span class="image-option-divider"></span>
+        <input id="image-width" type="hidden" value="1200">
+        <input id="image-height" type="hidden" value="800">
+        <label class="layout-control">Zoom <select id="image-zoom" aria-label="Canvas zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75" selected>75%</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
+        <label class="layout-control">Fill tolerance <input id="image-fill-tolerance" type="number" min="0" max="255" value="24" aria-label="Fill tolerance"></label>
+        <span class="image-option-divider"></span>
+        <button data-action="image-adjustments">Adjustments</button>
+
         <button data-action="image-invert">Invert</button>
         <button data-action="image-delete-selection">Delete selection</button>
         <button data-action="image-deselect">Deselect</button>
@@ -218,20 +221,58 @@
     </div>
     <div class="image-workspace">
       <aside class="image-tool-rail" id="image-tool-rail" aria-label="Image tools">
-        <button data-tool="move" aria-pressed="true" title="Move layer (V)" aria-label="Move tool">↖</button>
-        <button data-tool="free-transform" title="Free transform (scale, rotate, skew)" aria-label="Free transform">⤢</button>
-        <button data-tool="rect" title="Rectangular selection (M)" aria-label="Rectangular selection">▭</button>
-        <button data-tool="ellipse" title="Elliptical selection" aria-label="Elliptical selection">◯</button>
-        <button data-tool="lasso" title="Freehand selection" aria-label="Lasso selection">◌</button>
+        <svg class="image-icon-sprite" aria-hidden="true">
+          <symbol id="lip-icon-move" viewBox="0 0 24 24"><path d="M5 3v18l4.5-4.5 3 5 2.5-1.5-3-5 6-.5L5 3Z"/></symbol>
+          <symbol id="lip-icon-transform" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/><path d="M8 2v5M2 8h5m9-6v5m6 1h-5M2 16h5m1 6v-5m8 5v-5m6-1h-5"/></symbol>
+          <symbol id="lip-icon-select-rect" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="2 2"/></symbol>
+          <symbol id="lip-icon-select-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6" stroke-dasharray="2 2"/></symbol>
+          <symbol id="lip-icon-lasso" viewBox="0 0 24 24"><path d="M19.5 11.5c0 4-4 7-8.5 7S4 16.3 4 13s2.5-7 6.5-7c3.1 0 4.4 3.1 2 4.3-1.7.8-3.2-.3-2.5-1.6"/><path d="M18 17.5v3"/></symbol>
+          <symbol id="lip-icon-wand" viewBox="0 0 24 24"><path d="m4 20 11-11 3 3L7 23zM14 5l1-3m4 5 3-1m-4-3 2-2M7 7 6 5M4 11l-3 1"/></symbol>
+          <symbol id="lip-icon-brush" viewBox="0 0 24 24"><path d="m14 4 6 6-9 9-6-6 9-9Z"/><path d="m5 13-2 5 4-1m9-11 2-2 4 4-2 2"/></symbol>
+          <symbol id="lip-icon-eraser" viewBox="0 0 24 24"><path d="m4 14 9-10 7 6-9 10H7l-3-3a2 2 0 0 1 0-3Z"/><path d="m9 20 6-7"/></symbol>
+          <symbol id="lip-icon-fill" viewBox="0 0 24 24"><path d="M5 7.5h12l-1.1 11H6.1L5 7.5Z"/><ellipse cx="11" cy="7.5" rx="6" ry="2.2"/><path d="M17 10h1.2"/><path d="M20 10.5c1.2 1.5 1.8 2.3 1.8 3.1a1.8 1.8 0 1 1-3.6 0c0-.8.6-1.6 1.8-3.1Z" fill="currentColor" stroke="none"/></symbol>
+          <symbol id="lip-icon-picker" viewBox="0 0 24 24"><path d="m14 5 5 5L9 20l-5 1 1-5L14 5Z"/><path d="m12 7 5 5m1-9 2 2m-8 1 2 2"/></symbol>
+          <symbol id="lip-icon-clone" viewBox="0 0 24 24"><path d="M8 3h8l1 8 2 2v2H5v-2l2-2 1-8Z"/><path d="M8 18h8v3H8zM5 6H3v13h3"/></symbol>
+          <symbol id="lip-icon-rect" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></symbol>
+          <symbol id="lip-icon-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6"/></symbol>
+        </svg>
+        <button data-tool="move" aria-pressed="true" title="Move layer (V)" aria-label="Move tool"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-move"/></svg></button>
+        <button data-tool="free-transform" title="Free transform (scale, rotate, skew)" aria-label="Free transform"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-transform"/></svg></button>
+        <div class="image-selection-picker" id="image-selection-picker">
+          <button type="button" id="image-selection-toggle" title="Selection tools" aria-label="Selection tools" aria-haspopup="true" aria-expanded="false" aria-controls="image-selection-menu"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-select-rect"/></svg></button>
+          <div class="image-selection-menu" id="image-selection-menu" role="group" aria-label="Selection tools" hidden>
+            <button type="button" data-tool="rect" title="Rectangular selection (M)"><svg class="image-menu-icon" aria-hidden="true"><use href="#lip-icon-select-rect"/></svg><span>Rectangle</span></button>
+            <button type="button" data-tool="ellipse" title="Elliptical selection"><svg class="image-menu-icon" aria-hidden="true"><use href="#lip-icon-select-ellipse"/></svg><span>Ellipse</span></button>
+            <button type="button" data-tool="lasso" title="Freehand selection"><svg class="image-menu-icon" aria-hidden="true"><use href="#lip-icon-lasso"/></svg><span>Freehand</span></button>
+            <button type="button" data-tool="wand" title="Magic wand selection"><svg class="image-menu-icon" aria-hidden="true"><use href="#lip-icon-wand"/></svg><span>Magic wand</span></button>
+          </div>
+        </div>
         <span class="image-tool-separator"></span>
-        <button data-tool="brush" title="Brush (B)" aria-label="Brush">✎</button>
-        <button data-tool="eraser" title="Eraser (E)" aria-label="Eraser">▰</button>
-        <button data-tool="fill" title="Fill tool (G)" aria-label="Fill tool">▧</button>
-        <button data-tool="picker" title="Colour picker (I)" aria-label="Colour picker">◉</button>
-        <button data-tool="wand" title="Magic wand selection" aria-label="Magic wand selection">✧</button>
-        <button data-tool="clone" title="Clone stamp (Alt-click to set source)" aria-label="Clone stamp">⧉</button>
-        <button data-tool="shape-rect" title="Draw a rectangle" aria-label="Rectangle shape">□</button>
-        <button data-tool="shape-ellipse" title="Draw an ellipse" aria-label="Ellipse shape">○</button>
+        <div class="image-brush-picker" id="image-brush-picker">
+          <button type="button" data-tool="brush" id="image-brush-toggle" title="Brush (B)" aria-label="Brush" aria-haspopup="true" aria-expanded="false" aria-controls="image-brush-menu"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-brush"/></svg></button>
+          <div class="image-brush-menu" id="image-brush-menu" role="group" aria-label="Brush settings" hidden>
+            <label>Brush type<select id="image-brush-type" aria-label="Brush type"><option value="round">Round</option><option value="pencil">Pencil</option><option value="marker">Marker</option><option value="airbrush">Airbrush</option><option value="square">Square</option></select></label>
+            <label>Brush size <output id="image-brush-size-value" for="image-brush-size">18</output><input id="image-brush-size" type="range" min="1" max="300" value="18" aria-label="Brush size"></label>
+          </div>
+        </div>
+        <button data-tool="eraser" title="Eraser (E)" aria-label="Eraser"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-eraser"/></svg></button>
+        <button data-tool="fill" title="Fill tool (G)" aria-label="Fill tool"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-fill"/></svg></button>
+        <button data-tool="picker" title="Colour picker (I)" aria-label="Colour picker"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-picker"/></svg></button>
+        <button data-tool="clone" title="Clone stamp (Alt-click to set source)" aria-label="Clone stamp"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-clone"/></svg></button>
+        <div class="image-shape-picker" id="image-rect-picker">
+          <button type="button" data-tool="shape-rect" id="image-rect-toggle" title="Draw a rectangle" aria-label="Rectangle shape" aria-haspopup="true" aria-expanded="false" aria-controls="image-rect-menu"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-rect"/></svg></button>
+          <div class="image-shape-menu" id="image-rect-menu" role="group" aria-label="Rectangle style" hidden>
+            <label><input type="radio" name="image-rect-style" value="outline" checked> Outline</label>
+            <label><input type="radio" name="image-rect-style" value="filled"> Filled</label>
+          </div>
+        </div>
+        <div class="image-shape-picker" id="image-ellipse-picker">
+          <button type="button" data-tool="shape-ellipse" id="image-ellipse-toggle" title="Draw an ellipse" aria-label="Ellipse shape" aria-haspopup="true" aria-expanded="false" aria-controls="image-ellipse-menu"><svg class="image-tool-icon" aria-hidden="true"><use href="#lip-icon-ellipse"/></svg></button>
+          <div class="image-shape-menu" id="image-ellipse-menu" role="group" aria-label="Ellipse style" hidden>
+            <label><input type="radio" name="image-ellipse-style" value="outline" checked> Outline</label>
+            <label><input type="radio" name="image-ellipse-style" value="filled"> Filled</label>
+          </div>
+        </div>
       </aside>
       <div class="image-stage-scroll"><canvas id="image-stage" aria-label="Image canvas" tabindex="0"></canvas></div>
       <aside class="image-layers" aria-label="Layers">

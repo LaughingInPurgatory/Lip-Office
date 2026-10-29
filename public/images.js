@@ -21,7 +21,18 @@ export function createImageEditor(root) {
   const effectPicker = root.querySelector('#image-effect-picker');
   const effectToggle = root.querySelector('#image-effect-toggle');
   const effectMenu = root.querySelector('#image-effect-menu');
-  const effectLabel = root.querySelector('#image-effect-label');
+  const brushPicker = root.querySelector('#image-brush-picker');
+  const brushToggle = root.querySelector('#image-brush-toggle');
+  const brushMenu = root.querySelector('#image-brush-menu');
+  const brushSizeInput = root.querySelector('#image-brush-size');
+  const brushSizeValue = root.querySelector('#image-brush-size-value');
+  const selectionPicker = root.querySelector('#image-selection-picker');
+  const selectionToggle = root.querySelector('#image-selection-toggle');
+  const selectionMenu = root.querySelector('#image-selection-menu');
+  const shapeSettings = {
+    'shape-rect': { picker: root.querySelector('#image-rect-picker'), toggle: root.querySelector('#image-rect-toggle'), menu: root.querySelector('#image-rect-menu'), style: root.querySelector('[name="image-rect-style"]:checked').value },
+    'shape-ellipse': { picker: root.querySelector('#image-ellipse-picker'), toggle: root.querySelector('#image-ellipse-toggle'), menu: root.querySelector('#image-ellipse-menu'), style: root.querySelector('[name="image-ellipse-style"]:checked').value },
+  };
   const effectChoices = [...root.querySelectorAll('[data-effect]')];
   const effectDialog = root.querySelector('#image-effect-dialog');
   const effectDialogTitle = root.querySelector('#image-effect-title');
@@ -309,8 +320,23 @@ export function createImageEditor(root) {
   function setTool(next) {
     tool = next;
     root.querySelectorAll('[data-tool]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.tool === tool)));
+    selectionToggle.setAttribute('aria-pressed', String(['rect', 'ellipse', 'lasso', 'wand'].includes(tool)));
     canvas.style.cursor = tool === 'move' ? 'move' : tool === 'free-transform' ? 'default' : 'crosshair';
     paint();
+  }
+
+  function closeBrushMenu() {
+    brushMenu.hidden = true;
+    brushToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function closeShapeMenus() {
+    Object.values(shapeSettings).forEach(({ menu, toggle }) => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); });
+  }
+
+  function closeSelectionMenu() {
+    selectionMenu.hidden = true;
+    selectionToggle.setAttribute('aria-expanded', 'false');
   }
 
   function point(event) {
@@ -402,7 +428,7 @@ export function createImageEditor(root) {
   }
 
   function applyBrushStyle(target, activeTool) {
-    const size = Math.max(1, Math.min(300, Number(root.querySelector('#image-brush-size').value) || 1));
+    const size = Math.max(1, Math.min(300, Number(brushSizeInput.value) || 1));
     const brush = brushTypeInput.value;
     target.lineJoin = brush === 'square' ? 'bevel' : 'round';
     target.lineCap = brush === 'square' ? 'butt' : 'round';
@@ -461,7 +487,7 @@ export function createImageEditor(root) {
     } else if (tool.startsWith('shape-')) {
       checkpoint();
       commitLayerTransform(layers[active]);
-      gesture = { tool, start: p, current: p };
+      gesture = { tool, start: p, current: p, style: shapeSettings[tool].style };
     } else if (tool === 'move') {
       checkpoint();
       gesture = { tool, start: p, x: layers[active].x, y: layers[active].y };
@@ -511,7 +537,7 @@ export function createImageEditor(root) {
     } else if (gesture.tool === 'clone') {
       const layer = layers[active], current = layerPoint(p, layer), start = layerPoint(gesture.start, layer);
       const sourceX = gesture.source.x + current.x - start.x, sourceY = gesture.source.y + current.y - start.y;
-      const size = Math.max(2, Number(root.querySelector('#image-brush-size').value) || 18);
+      const size = Math.max(2, Number(brushSizeInput.value) || 18);
       const target = layer.canvas.getContext('2d');
       target.save();
       clipToSelection(target, layer);
@@ -549,11 +575,16 @@ export function createImageEditor(root) {
     const w = Math.abs(draft.current.x - draft.start.x), h = Math.abs(draft.current.y - draft.start.y);
     ctx.save();
     applyBrushStyle(ctx, 'brush');
-    ctx.beginPath();
-    if (draft.tool === 'shape-ellipse') ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-    else ctx.rect(x, y, w, h);
-    ctx.stroke();
+    drawShape(ctx, draft.tool, x, y, w, h, draft.style);
     ctx.restore();
+  }
+
+  function drawShape(context, shape, x, y, w, h, style) {
+    context.beginPath();
+    if (shape === 'shape-ellipse') context.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    else context.rect(x, y, w, h);
+    if (style === 'filled') { context.fillStyle = context.strokeStyle; context.fill(); }
+    else context.stroke();
   }
 
   function drawDraftSelection(draft) {
@@ -594,10 +625,7 @@ export function createImageEditor(root) {
       target.save();
       clipToSelection(target, layer);
       applyBrushStyle(target, 'brush');
-      target.beginPath();
-      if (gesture.tool === 'shape-ellipse') target.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-      else target.rect(x, y, w, h);
-      target.stroke();
+      drawShape(target, gesture.tool, x, y, w, h, gesture.style);
       target.restore();
     }
     gesture = null;
@@ -1425,10 +1453,35 @@ export function createImageEditor(root) {
       effectToggle.setAttribute('aria-expanded', String(!effectMenu.hidden));
       return;
     }
+    if (button === brushToggle) {
+      const wasOpen = !brushMenu.hidden;
+      setTool('brush');
+      brushMenu.hidden = wasOpen;
+      brushToggle.setAttribute('aria-expanded', String(!wasOpen));
+      return;
+    }
+    if (button === selectionToggle) {
+      selectionMenu.hidden = !selectionMenu.hidden;
+      selectionToggle.setAttribute('aria-expanded', String(!selectionMenu.hidden));
+      return;
+    }
+    if (selectionMenu.contains(button) && button.dataset.tool) {
+      setTool(button.dataset.tool);
+      closeSelectionMenu();
+      return;
+    }
+    const shapeTool = Object.keys(shapeSettings).find((name) => button === shapeSettings[name].toggle);
+    if (shapeTool) {
+      const setting = shapeSettings[shapeTool];
+      const wasOpen = !setting.menu.hidden;
+      setTool(shapeTool);
+      closeShapeMenus();
+      if (!wasOpen) { setting.menu.hidden = false; setting.toggle.setAttribute('aria-expanded', 'true'); }
+      return;
+    }
     if (button.dataset.effect) {
       const kind = button.dataset.effect;
       root.querySelector('#image-filter-kind').value = kind;
-      effectLabel.textContent = button.dataset.label;
       effectChoices.forEach((choice) => choice.setAttribute('aria-pressed', String(choice === button)));
       closeEffectMenu();
       effectDialogTitle.textContent = button.dataset.label;
@@ -1491,9 +1544,16 @@ export function createImageEditor(root) {
   resizeScaleInput.addEventListener('input', () => updateResizeDimensions('scale'));
   resizeLockInput.addEventListener('change', () => updateResizeDimensions('width'));
   input.addEventListener('change', () => { addImage(input.files?.[0]).catch((err) => window.alert(err.message)); input.value = ''; });
+  brushSizeInput.addEventListener('input', () => { brushSizeValue.value = brushSizeInput.value; });
+  for (const setting of Object.values(shapeSettings)) {
+    setting.picker.querySelectorAll('input[type="radio"]').forEach((input) => input.addEventListener('change', () => { if (input.checked) setting.style = input.value; }));
+  }
   window.addEventListener('pointerdown', (event) => {
     if (!layerMenu.hidden && !layerMenu.contains(event.target) && !list.contains(event.target)) layerMenu.hidden = true;
     if (!effectMenu.hidden && !effectPicker.contains(event.target)) closeEffectMenu();
+    if (!brushMenu.hidden && !brushPicker.contains(event.target)) closeBrushMenu();
+    if (!selectionMenu.hidden && !selectionPicker.contains(event.target)) closeSelectionMenu();
+    if (Object.values(shapeSettings).some(({ menu }) => !menu.hidden) && !Object.values(shapeSettings).some(({ picker }) => picker.contains(event.target))) closeShapeMenus();
   });
   opacityInput.addEventListener('pointerdown', checkpoint);
   opacityInput.addEventListener('input', () => {
@@ -1593,6 +1653,9 @@ export function createImageEditor(root) {
   window.addEventListener('keydown', (event) => {
     if (root.classList.contains('hidden') || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     if (event.key === 'Escape' && !effectMenu.hidden) { closeEffectMenu(); return; }
+    if (event.key === 'Escape' && !brushMenu.hidden) { closeBrushMenu(); return; }
+    if (event.key === 'Escape' && !selectionMenu.hidden) { closeSelectionMenu(); return; }
+    if (event.key === 'Escape' && Object.values(shapeSettings).some(({ menu }) => !menu.hidden)) { closeShapeMenus(); return; }
     if (event.key === 'Escape' && !layerMenu.hidden) { layerMenu.hidden = true; return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     else if (event.key.toLowerCase() === 'v') setTool('move');

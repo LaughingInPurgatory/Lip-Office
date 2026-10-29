@@ -1218,6 +1218,10 @@ export function createImageEditor(root) {
     paint();
   }
 
+  function runFilter() {
+    applyFilter().catch((error) => window.alert(error.message || 'Could not apply this effect.'));
+  }
+
   function layerAction(action) {
     const layer = layers[active];
     if (action === 'image-new-layer') { checkpoint(); addLayer(); }
@@ -1292,6 +1296,7 @@ export function createImageEditor(root) {
       effectLabel.textContent = button.dataset.label;
       effectChoices.forEach((choice) => choice.setAttribute('aria-pressed', String(choice === button)));
       closeEffectMenu();
+      runFilter();
       return;
     }
     if (button.dataset.tool) setTool(button.dataset.tool);
@@ -1303,7 +1308,7 @@ export function createImageEditor(root) {
     if (button.dataset.action === 'image-resize') resizeImage();
     if (button.dataset.action === 'image-add-text') openTextDialog();
     if (button.dataset.action === 'image-adjust') adjustLayer('adjust');
-    if (button.dataset.action === 'image-filter') applyFilter();
+    if (button.dataset.action === 'image-filter') runFilter();
     if (button.dataset.action === 'image-grayscale') adjustLayer('grayscale');
     if (button.dataset.action === 'image-invert') adjustLayer('invert');
     if (button.dataset.action === 'image-undo') undo();
